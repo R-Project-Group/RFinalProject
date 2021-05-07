@@ -7,6 +7,10 @@ output: html_document
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
+if(!require('pacman')) {install.packages('pacman')}
+pacman::p_load(tidyverse, dplyr, ggplot2, ggthemes, data.table, lubridate,
+               GGally, RColorBrewer, ggsci, plotROC, usmap,
+               plotly, ggpubr, vistime)
 ```
 
 ## R Markdown
@@ -15,18 +19,19 @@ This is an R Markdown document. Markdown is a simple formatting syntax for autho
 
 When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
 
-```{r cars}
-summary(cars)
+```{r}
+killdata <- read.csv("PoliceKillingsUS.csv")
+incomedata <- read.csv("MedianHouseholdIncome2015.csv")
+povertydata <- read.csv("PercentagePeopleBelowPovertyLevel.csv")
+educationdata <- read.csv("PercentOver25CompletedHighSchool.csv")
+racedata <- read.csv("ShareRaceByCity.csv")
+popdata <- read.csv("PopulationData.csv")
 ```
 
-## Including Plots
 
-You can also embed plots, for example:
-
-Here's a new change. 
-
-```{r pressure, echo=FALSE}
-plot(pressure)
+```{r}
+killdata$location <- paste(killdata$city, killdata$state, sep="")
+head(killdata)
 ```
 
 Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
