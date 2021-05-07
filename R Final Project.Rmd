@@ -10,7 +10,7 @@ knitr::opts_chunk$set(echo = TRUE)
 if(!require('pacman')) {install.packages('pacman')}
 pacman::p_load(tidyverse, dplyr, ggplot2, ggthemes, data.table, lubridate,
                GGally, RColorBrewer, ggsci, plotROC, usmap,
-               plotly, ggpubr, vistime)
+               plotly, ggpubr, vistime, RCurl, RJSONIO, sf, tigris)
 ```
 
 ## R Markdown
@@ -20,12 +20,32 @@ This is an R Markdown document. Markdown is a simple formatting syntax for autho
 When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
 
 ```{r}
-killdata <- read.csv("PoliceKillingsUS.csv")
-incomedata <- read.csv("MedianHouseholdIncome2015.csv")
-povertydata <- read.csv("PercentagePeopleBelowPovertyLevel.csv")
-educationdata <- read.csv("PercentOver25CompletedHighSchool.csv")
-racedata <- read.csv("ShareRaceByCity.csv")
-popdata <- read.csv("PopulationData.csv")
+# Read-in data
+
+killdata <- read.csv("PoliceKillingsUS_MC.csv")
+killdata_latlong <- data.frame(latitude = killdata$latitude, longitude = killdata$longitude)
+
+latlong_sf <- killdata_latlong %>%
+  filter(!is.na(latitude), !is.na(longitude)) %>%
+  st_as_sf(coords = c("longitude", "latitude"), crs = st_crs(census_tracts))
+
+intersected <- st_intersects(latlong_sf, census_tracts)
+
+latlong_final <- latlong_sf %>%
+  mutate(intersection = as.integer(intersected),
+         fips = if_else(is.na(intersection), "",
+                        census_tracts$GEOID[intersection]))
+
+# https://shiandy.com/post/2020/11/02/mapping-lat-long-to-fips/
+
+latlong_final$mod_fips <- paste(str_sub(latlong_final$fips, 1, 2), str_sub(latlong_final$fips, -3, -1), sep = "") # Needed to fix the FIPS as the GEOID does seems to put the block code in the middle of the State and County identifier which is incorrect
+
+killdata_clean <- killdata %>%
+  filter(!is.na(latitude), !is.na(longitude)) # Remove all killings that don't have latitude/longitude
+  
+killdata_clean$mod_fips <- latlong_final$mod_fips  # Append the FIPS code onto the data
+
+
 ```
 
 
