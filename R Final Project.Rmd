@@ -22,6 +22,8 @@ When you click the **Knit** button a document will be generated that includes bo
 ```{r}
 # Read-in data
 
+census_tracts <- st_read("CensusShapes2/cb_2018_us_county_within_cd116_500k.shp", quiet = TRUE)
+
 killdata <- read.csv("PoliceKillingsUS_MC.csv")
 killdata_latlong <- data.frame(latitude = killdata$latitude, longitude = killdata$longitude)
 
@@ -44,10 +46,27 @@ killdata_clean <- killdata %>%
   filter(!is.na(latitude), !is.na(longitude)) # Remove all killings that don't have latitude/longitude
   
 killdata_clean$mod_fips <- latlong_final$mod_fips  # Append the FIPS code onto the data
+```
+
+```{r}
+# Read-in census data
+
+demoData <- read.csv("Data (County-Level)/Demographics and Housing/ACSDP1Y2019.DP05_data_with_overlays_2021-04-29T104649.csv", skip = 1, header = T)
+
+eduData <- read.csv("Data (County-Level)/Educational Attainment/ACSST1Y2019.S1501_data_with_overlays_2021-05-07T192056.csv", skip = 1, header = T)
+
+financeData <- read.csv("Data (County-Level)/Financial Characteristics/ACSST1Y2019.S2503_data_with_overlays_2021-05-07T193752.csv", skip = 1, header = T)
+
+econData <- read.csv("Data (County-Level)/Selected Economic Characteristics/ACSDP1Y2019.DP03_data_with_overlays_2021-05-07T193216.csv", skip = 1, header = T)
+
+housingData <- read.csv("Data (County-Level)/Selected Housing Characteristics/ACSDP1Y2019.DP04_data_with_overlays_2021-04-29T141348.csv", skip = 1, header = T)
+```
+
+```{r}
+
 
 
 ```
-
 
 ```{r}
 killdata$location <- paste(killdata$city, killdata$state, sep="")
