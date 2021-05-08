@@ -21,6 +21,11 @@ pacman::p_load(tidyverse, dplyr, ggplot2, ggthemes, data.table, lubridate,
 census_tracts <- st_read("CensusShapes2/cb_2018_us_county_within_cd116_500k.shp", quiet = TRUE)
 
 killdata <- read.csv("PoliceKillingsUS_MC.csv")
+
+fipsLookUp <- read.csv("FIPSCountyStateLookUp.csv", colClasses ='character') # From https://www.nrcs.usda.gov/wps/portal/nrcs/detail/national/home/?cid=nrcs143_013697
+
+fipsLookUp$fips <- fipsLookUp[,1] # Import has made the FIPS column name weird so re-making column
+
 killdata_latlong <- data.frame(latitude = killdata$latitude, longitude = killdata$longitude)
 
 latlong_sf <- killdata_latlong %>%
@@ -77,6 +82,7 @@ masterCensus_s2 <- masterCensus %>%
   select(-contains(".y")) %>% # Indicates a duplicated variable
   select(-contains(".x"))
 ```
+
 ```{r}
 killdata_clean %>%
   group_by(manner_of_death, signs_of_mental_illness, threat_level, flee, body_camera) %>%
@@ -183,11 +189,58 @@ sdl1 <- masterCensus_s2 %>%
     mutate(killingRateLog = log(killingRate)) %>%
     select(fips,totalKillings,killingRate,killingRateLog,everything())
 
-```
+# Step 1 cleaning; only keep columns that have 'percentage' data
+sdl2 <- sdl1 %>%
+    select(contains("Percent"))
 
-```{r}
-killdata$location <- paste(killdata$city, killdata$state, sep="")
-head(killdata)
+# Step 2 cleaning; identify non-numeric values within census data
+table(unlist(sdl2, use.names = FALSE)[(!grepl('^[0-9]',unlist(sdl2, use.names = FALSE)))])
+
+# It looks like things are coded (X) or N if they are missing; let's look at which columns have a high percentage of (X) or N and are thus worth dropping
+
+# Flag any column where more than half the values are (X)
+library(plyr)
+count.X.per.column <- ldply(sdl2, function(c) sum(c=="(X)"))
+columnsToExclude1 <- count.X.per.column$.id[count.X.per.column$V1 > 420]
+
+# Flag any column where more than half of the values are N
+count.N.per.column <- ldply(sdl2, function(c) sum(c=="N"))
+columnsToExclude2 <- count.N.per.column$.id[count.N.per.column$V1 > 420]
+
+count.N.per.column <- ldply(sdl2, function(c) min())
+
+# Drop columns with too many NULL values
+sdl3 <- sdl2 %>%
+  select(-columnsToExclude1)
+
+sdl4 <- sdl3 %>%
+  select(-columnsToExclude2)
+
+sdl5 <- mutate_all(sdl4, function(x) as.numeric(as.character(x)))
+
+class(sdl5)
+dim(sdl5)
+
+# Flag any column where the minimum is above 100
+colMin <- apply(sdl5, 2, min, na.rm = TRUE)
+columnsToExclude3 <- names(colMin)[colMin>100]
+
+# Drop columns with values that are below the expected range
+sdl6 <- sdl5 %>%
+  select(-columnsToExclude3)
+
+dim(sdl6)
+
+# Flag any column where the maximum is above 100
+colMax <- apply(sdl6, 2, max, na.rm = TRUE)
+columnsToExclude4 <- names(colMax)[colMax>100]
+
+# Drop columns with value that exceeds the expected range
+sdl7 <- sdl6 %>%
+  select(-columnsToExclude4)
+
+names(sdl7)
+
 ```
 
 Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
@@ -214,17 +267,29 @@ Output variable: % of killings involving use of taser
 ```{r}
 head(sdl1)
 # turns all NAs into 0
-sdl1 %>%
+sdl2 <- sdl1 %>%
   mutate_all(~replace(., is.na(.), 0)) %>%
   relocate(totalKillings, .before = fips) %>%
   relocate(killingRate, .before = fips) %>%
   relocate(killingRateLog, .before = fips)
+is.na(sdl2$killingRateLog)
+
+names(sdl2)
+
 
 ```
 ```{r}
 set.seed(1)
-X <- model.matrix(killingRate~.,data=sdl1)[,-3]
+X <- model.matrix(totalKillings~.,data=sdl2)
+
+is.na(sdl2$totalKillings)
+help(model.matrix)
+
+
+[,-3]
 Y <- sdl1$killingRate
 fit.lasso.0 <- cv.glmnet(X,Y, nfolds = 10, intercept = T)
 plot(fit.lasso.0)
+
+sdl2[,-3]
 ```
