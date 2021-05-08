@@ -1,6 +1,6 @@
 ---
 title: "Final Project"
-author: "Phillip Ross"
+author: "Phillip Ross, Ming Chen, Hersh Agarwal"
 date: "5/6/2021"
 output: html_document
 ---
@@ -14,10 +14,6 @@ pacman::p_load(tidyverse, dplyr, ggplot2, ggthemes, data.table, lubridate,
 ```
 
 ## R Markdown
-
-This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
-
-When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
 
 ```{r}
 # Read-in data
@@ -153,8 +149,14 @@ axis(side = 4, at = c(0, px), labels = paste(c(0, round(paretoData$cum_freq * 10
      las = 1, col.axis = "grey62", col = "cyan4", cex.axis = 0.8, col.axis = "cyan4")
 
 # One FIPs has a staggeringly high killing number (255), but we have to scale this by population. There is a very long right tail and from the pareto shape it does seem like certain counties are over-represented.
+
 ```
 
+```{r}
+killdata_FIPS$fips[which.max(killdata_FIPS$totalKillings)]
+killdata_FIPS$totalKillings[which.max(killdata_FIPS$totalKillings)]
+```
+The maximum number of total killings is in Los Angeles County at 255. 
 ```{r}
 par(def_par) 
 
@@ -210,7 +212,19 @@ Output variable: % of killings involving use of taser
 
 
 ```{r}
+head(sdl1)
+# turns all NAs into 0
+sdl1 %>%
+  mutate_all(~replace(., is.na(.), 0)) %>%
+  relocate(totalKillings, .before = fips) %>%
+  relocate(killingRate, .before = fips) %>%
+  relocate(killingRateLog, .before = fips)
 
-
-
+```
+```{r}
+set.seed(1)
+X <- model.matrix(killingRate~.,data=sdl1)[,-3]
+Y <- sdl1$killingRate
+fit.lasso.0 <- cv.glmnet(X,Y, nfolds = 10, intercept = T)
+plot(fit.lasso.0)
 ```
