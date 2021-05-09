@@ -380,4 +380,28 @@ fit.min.lm %>%
 ```
 
 ```{r}
+```
 
+
+create dataframe with # of black killings, # of black residents, # of overall killings, # of overall residents. Join master census table into this dataframe
+
+```{r}
+
+killdata_raceanalysis <- killdata_clean %>%
+  filter(race == 'B') %>%
+  group_by(mod_fips) %>%
+  dplyr::summarise(totalKillings = n()) %>%
+  dplyr::rename(fips = mod_fips)
+
+head(killdata_raceanalysis)
+#getting some weird result with only 6 rows
+  
+```
+
+Dataframe with summary stats. For each county, what % of killings involved taser? Going to plot this against various factors in the dataset
+
+```{r}
+
+
+  
+```
