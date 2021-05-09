@@ -18,40 +18,52 @@ pacman::p_load(tidyverse, dplyr, ggplot2, ggthemes, data.table, lubridate,
 ```{r}
 # Read-in data
 
+# These are census shape files which we need to map latitude and longitutde to FIPs codes
 census_tracts <- st_read("CensusShapes2/cb_2018_us_county_within_cd116_500k.shp", quiet = TRUE)
 
+# This is the police killing data from Kaggle
 killdata <- read.csv("PoliceKillingsUS_MC.csv")
 
-fipsLookUp <- read.csv("FIPSCountyStateLookUp.csv", colClasses ='character') # From https://www.nrcs.usda.gov/wps/portal/nrcs/detail/national/home/?cid=nrcs143_013697
-
+# This is a look-up table that maps FIPS code to County name and State (from: https://www.nrcs.usda.gov/wps/portal/nrcs/detail/national/home/?cid=nrcs143_013697)
+fipsLookUp <- read.csv("FIPSCountyStateLookUp.csv", colClasses ='character') 
 fipsLookUp$fips <- fipsLookUp[,1] # Import has made the FIPS column name weird so re-making column
 
+# First-off, we need take our geo-coordinates of each police killing and map it to a county (uniquely identified by a FIPS code). This is because all the census data we plan to join in is readily available at the county level
+
+# There are APIs that do this, but we couldn't figure out how to get them to work. Instead, we found a tutorial that relies on plotting lat/long within county boundaries as defined in the shape files. Tutorial here: https://shiandy.com/post/2020/11/02/mapping-lat-long-to-fips/
+
+# Remove the lat/long from the killing data to feed into this algorithm
 killdata_latlong <- data.frame(latitude = killdata$latitude, longitude = killdata$longitude)
 
+# Remove observations without lat/long and convert them into a shape file
 latlong_sf <- killdata_latlong %>%
   filter(!is.na(latitude), !is.na(longitude)) %>%
   st_as_sf(coords = c("longitude", "latitude"), crs = st_crs(census_tracts))
 
-intersected <- st_intersects(latlong_sf, census_tracts)
+# Check the overlap between the lat/long and the census tracts
+intersected <- st_intersects(latlong_sf, census_tracts) 
 
+# Indicate overlap and if there is overlap, bring in the GEOID
 latlong_final <- latlong_sf %>%
   mutate(intersection = as.integer(intersected),
          fips = if_else(is.na(intersection), "",
                         census_tracts$GEOID[intersection]))
 
-# https://shiandy.com/post/2020/11/02/mapping-lat-long-to-fips/
+# GEOID does not seem to be FIPS exactly -- pull the first two and last three characters to get to the FIPS
+latlong_final$mod_fips <- paste(str_sub(latlong_final$fips, 1, 2), str_sub(latlong_final$fips, -3, -1), sep = "") 
 
-latlong_final$mod_fips <- paste(str_sub(latlong_final$fips, 1, 2), str_sub(latlong_final$fips, -3, -1), sep = "") # Needed to fix the FIPS as the GEOID does seems to put the block code in the middle of the State and County identifier which is incorrect
-
+# We remove all killings that don't have a latitude/longitude. We go from 6268 observations to 5963 observations which is not a terrible fall-out.
 killdata_clean <- killdata %>%
   filter(!is.na(latitude), !is.na(longitude)) # Remove all killings that don't have latitude/longitude
-  
-killdata_clean$mod_fips <- latlong_final$mod_fips  # Append the FIPS code onto the data
+
+# We take the FIPs code that we have generated from the lat/long and append it onto the data
+killdata_clean$mod_fips <- latlong_final$mod_fips  
 ```
 
 ```{r}
-# Read-in census data
+# Read-in census data. All data was sourced from the American Community Survey in 2019 and pulled at the FIPS level for all counties
 
+# Skip the first row, as it is a redundant header row
 demoData <- read.csv("Data (County-Level)/Demographics and Housing/ACSDP1Y2019.DP05_data_with_overlays_2021-04-29T104649.csv", skip = 1, header = T)
 # ACS DEMOGRAPHIC AND HOUSING ESTIMATES
 
@@ -69,14 +81,17 @@ housingData <- read.csv("Data (County-Level)/Selected Housing Characteristics/AC
 ```
 
 ```{r}
-names(demoData)
+# names(demoData)
 
+# Join together all the demo data by ID (in this case the FIPS)
 masterCensus <- demoData %>%
   left_join(econData, by="id") %>%
   left_join(eduData, by="id") %>%
   left_join(housingData, by="id") %>%
   left_join(financeData, by="id")
 
+# Half of the columns are columns which estimate how much error they may have been in the measurement. These are a bit too complex to work with, so let's just remove them
+# There are also overlapping columns across each set. These get a '.y'. or '.x' added to them so can be identified and removed.  
 masterCensus_s2 <- masterCensus %>%
   select(-contains("Error")) %>% # Removes columns that indicator the error
   select(-contains(".y")) %>% # Indicates a duplicated variable
@@ -84,6 +99,8 @@ masterCensus_s2 <- masterCensus %>%
 ```
 
 ```{r}
+# Let's look at the killings data to understand what data we have, and what sort of dependent variable we want to create. 
+
 killdata_clean %>%
   group_by(manner_of_death, signs_of_mental_illness, threat_level, flee, body_camera) %>%
   summarise(count = n())
@@ -112,8 +129,9 @@ killdata_clean %>%
 ```
 
 ```{r}
-# Curious to see how the killing is disseminated across counties represented in the data
-killdata_FIPS <- killdata_clean %>%
+# Curious to see how the killing is disseminated across counties represented in the data. Below is code to construct a pareto chart of killings by FIPS. 
+
+killdata_FIPS <- killdata_clean %>% # Create a county-level data-set with # of killings
   group_by(mod_fips) %>%
   summarise(totalKillings = n()) %>%
   rename(fips = mod_fips)
@@ -159,16 +177,16 @@ axis(side = 4, at = c(0, px), labels = paste(c(0, round(paretoData$cum_freq * 10
 ```
 
 ```{r}
+# The maximum number of total killings is in Los Angeles County at 255. 
 killdata_FIPS$fips[which.max(killdata_FIPS$totalKillings)]
 killdata_FIPS$totalKillings[which.max(killdata_FIPS$totalKillings)]
 ```
-The maximum number of total killings is in Los Angeles County at 255. 
-```{r}
-par(def_par) 
 
-install.packages('skimr')
+```{r}
+
+# install.packages('skimr')
 library(skimr)
-summary(killdata_clean)
+# summary(killdata_clean)
 
 # Evaluate data across time
 killdata_fips_year <- killdata_clean %>%
@@ -179,18 +197,22 @@ killdata_fips_year <- killdata_clean %>%
 
 # There is not much difference year over year; might not make sense to separate this by years
 
-killdata_FIPS
-
+# Pull out the FIPS code out of the ID identified in the census data
 masterCensus_s2$fips <- str_sub(masterCensus_s2$id, -5, -1)
 
+# Join the killings data to the census data. Create the killing rate response variable as well as transformed version because the rates are very low. 
 sdl1 <- masterCensus_s2 %>%
     left_join(killdata_FIPS, by="fips") %>%
     mutate(killingRate =  totalKillings/Estimate..SEX.AND.AGE..Total.population) %>%
     mutate(killingRateEff = coalesce(killingRate, 0.000001)) %>%
     mutate(killingRateLog = log(killingRateEff)) %>%
     select(fips,totalKillings,killingRate,killingRateLog,everything())
+```
 
-# Step 1 cleaning; only keep columns that have 'percentage' data
+```{r}
+# We will do some variable/column cleaning
+
+# Step 1 cleaning; only keep columns that have 'percentage' data. Countries differ greatly by size, so the nominal data could push results one way or another. By using percentage data, each variable in each county receives equal weight
 sdl2 <- sdl1 %>%
     select(contains("Percent"))
 
@@ -199,12 +221,12 @@ table(unlist(sdl2, use.names = FALSE)[(!grepl('^[0-9]',unlist(sdl2, use.names = 
 
 # It looks like things are coded (X) or N if they are missing; let's look at which columns have a high percentage of (X) or N and are thus worth dropping
 
-# Flag any column where more than half the values are (X)
+# Flag any column where more than half the values are '(X)'
 library(plyr)
 count.X.per.column <- ldply(sdl2, function(c) sum(c=="(X)"))
 columnsToExclude1 <- count.X.per.column$.id[count.X.per.column$V1 > 420]
 
-# Flag any column where more than half of the values are N
+# Flag any column where more than half of the values are 'N'
 count.N.per.column <- ldply(sdl2, function(c) sum(c=="N"))
 columnsToExclude2 <- count.N.per.column$.id[count.N.per.column$V1 > 420]
 
@@ -215,22 +237,18 @@ sdl3 <- sdl2 %>%
 sdl4 <- sdl3 %>%
   select(-columnsToExclude2)
 
+# Convert remaining data frame into numeric columns (will force some values to NA)
 sdl5 <- mutate_all(sdl4, function(x) as.numeric(as.character(x)))
 
-class(sdl5)
-dim(sdl5)
-
-# Flag any column where the minimum is above 100
+# Flag any column where the minimum is above 100 (percentage cannot be over 100)
 colMin <- apply(sdl5, 2, min, na.rm = TRUE)
 columnsToExclude3 <- names(colMin)[colMin>100]
 
-# Drop columns with values that are below the expected range
+# Drop columns with values that are below the expected range 
 sdl6 <- sdl5 %>%
   select(-columnsToExclude3)
 
-dim(sdl6)
-
-# Flag any column where the maximum is above 100
+# Flag any column where the maximum is above 100 (percentage cannot be over 100)
 colMax <- apply(sdl6, 2, max, na.rm = TRUE)
 columnsToExclude4 <- names(colMax)[colMax>100]
 
@@ -238,19 +256,19 @@ columnsToExclude4 <- names(colMax)[colMax>100]
 sdl7 <- sdl6 %>%
   select(-columnsToExclude4)
 
+# Re-add response variables back to cleaned census data
 sdl7$fips <- sdl1$fips
 sdl7$totalKillings <- sdl1$totalKillings
 sdl7$killingRate <- sdl1$killingRate
 sdl7$killingRateLog <- sdl1$killingRateLog
 
-names(sdl8)
-
+# Join on county and state variables onto data layer
 sdl8 <- sdl7 %>%
   left_join(fipsLookUp, by="fips") %>%
   select(fips,County,State,totalKillings,killingRate,killingRateLog,everything()) %>%
   select(-ï..FIPS)
   
-options(max.print=400)
+# options(max.print=400)
 ```
 
 Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
@@ -284,28 +302,38 @@ Output variable: % of killings involving use of taser
 #  relocate(killingRateLog, .before = fips)
 #   is.na(sdl2$killingRateLog)
 
+# Remove non-predictive variables
 sdl8sub = sdl8[,-1:-5]
 
+# Glmnet doesn't play with NAs, so coalesce all NAs into 0
 sdl9sub <- sdl8sub %>%
-   mutate_all(~replace(., is.na(.), 0)) # glmnet doesn't play with NAs, so coalesce all NAs into 0
+   mutate_all(~replace(., is.na(.), 0)) 
 
 set.seed(1)
+
+# Create model matrix for GLM
 X.fl <- model.matrix(killingRateLog~., data=sdl9sub)[,-1]
 Y <- sdl9sub$killingRateLog
 
+# Run CV glmnet with ten-folds
 fit.lasso.0 <- glmnet::cv.glmnet(X.fl,Y, nfolds = 10, intercept =T)
 names(fit.lasso.0)
 
+# Identify variables associated with MSE at 1SE above minimum
 coef.1se <- coef(fit.lasso.0, s="lambda.1se")
 coef.1se <- coef.1se[which(coef.1se !=0),]
 var.1se <- rownames(as.matrix(coef.1se))[-1]
 
+# Extract selected variables out of data-set
 data.fl.sub <- sdl9sub[,c("killingRateLog", var.1se)] # get a 
 
-fit.min.lm <- lm(killingRateLog~., data=data.fl.sub) # debiased or relaxed LASSO
+# Use selected variables in Relaxed-LASSO
+fit.min.lm <- lm(killingRateLog~., data=data.fl.sub)
 
 install.packages('gtsummary')
 library(gtsummary)
+
+# Get summary of regression results
 fit.min.lm %>%
     tbl_regression()
 ```
