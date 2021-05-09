@@ -386,6 +386,7 @@ head(counties)
 
 ```{r}
 
+<<<<<<< HEAD
 killdata_fips_yearcounty <-
   killdata_clean %>%
   mutate(date = as.Date(killdata_clean$date, format = "%m/%d/%Y")) %>%
@@ -422,6 +423,13 @@ county_map <- left_join(killdata_fips_yearcounty, counties, by = "county_fips", 
 
 
 
+=======
+killdata_raceanalysis <- killdata_clean %>%
+  filter(race == 'B') %>%
+  group_by(mod_fips) %>%
+  dplyr::summarise(totalKillings = n()) %>%
+  dplyr::rename(fips = mod_fips)
+>>>>>>> parent of 2a91750 (Code for Hersh)
 
 ```
 
@@ -438,6 +446,7 @@ head(killdata_fips_county)
 ```
 
 ```{r}
+<<<<<<< HEAD
 fulldata <- left_join(killdata_fips_county, masterCensus_s2, by="fips") %>%
   mutate(killingRate =  (totalKillings/Estimate..SEX.AND.AGE..Total.population)*100000) %>%
   mutate(killingRateEff = coalesce(killingRate, 0.000001)) %>%
@@ -446,6 +455,9 @@ fulldata <- left_join(killdata_fips_county, masterCensus_s2, by="fips") %>%
   select(county_fips,totalKillings,killingRate,killingRateLog)
 head(fulldata)
 ```
+=======
+
+>>>>>>> parent of 2a91750 (Code for Hersh)
 
 ```{r}
 counties_sf <- get_urbn_map(map = "counties", sf = TRUE)
