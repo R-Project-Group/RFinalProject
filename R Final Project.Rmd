@@ -388,10 +388,17 @@ create dataframe with # of black killings, # of black residents, # of overall ki
 ```{r}
 
 killdata_raceanalysis <- killdata_clean %>%
+  rename(fips = mod_fips) %>%
   filter(race == 'B') %>%
-  group_by(mod_fips) %>%
-  dplyr::summarise(totalKillings = n()) %>%
-  dplyr::rename(fips = mod_fips)
+  group_by(fips) %>%
+  dplyr::summarise(totalBlackKillings = n()) %>%
+  left_join(masterCensus_s2, by="fips") %>%
+  rename(blackPop = `Estimate!!RACE!!Total population!!One race!!Black or African American`) %>% # This doesn't work yet
+  mutate(blacksRatio = totalBlackKillings/blackPop) %>%
+  select(fips, totalBlackKillings, blacksRatio, blackPop)
+
+# Just remove the filter to do the same thing for overall residents
+
 
 head(killdata_raceanalysis)
 #getting some weird result with only 6 rows
@@ -401,7 +408,7 @@ head(killdata_raceanalysis)
 Dataframe with summary stats. For each county, what % of killings involved taser? Going to plot this against various factors in the dataset
 
 ```{r}
-
+# Just do a group by county and by manner_of_death and then divide that by a group by of just county
 
   
 ```
