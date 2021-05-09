@@ -354,14 +354,15 @@ plot(fit.lasso.0)
 
 # Identify variables associated with MSE at 1SE above minimum
 coef.1se <- coef(fit.lasso.0, s="lambda.1se")
-coef.1se <- coef.1se[which(coef.1se != 0),]
-var.1se <- rownames(as.matrix(coef.1se))[-1]
+# coef.1se <- coef.1se[which(coef.1se !=0),]
+# var.1se <- rownames(as.matrix(coef.1se))[-1]
+var.1se <- coef.1se@Dimnames[[1]][coef.1se@i + 1][-1]
 
 # Extract selected variables out of data-set
 data.fl.sub <- sdl9sub[,c("killingRateLog", var.1se)] # get a 
 
-names(sdl9sub)
-var.min
+# names(sdl9sub)
+# var.min
 
 # Use selected variables in Relaxed-LASSO
 fit.min.lm <- lm(killingRateLog~., data=data.fl.sub)
