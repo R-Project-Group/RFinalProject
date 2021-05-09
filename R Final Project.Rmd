@@ -9,8 +9,9 @@ output: html_document
 knitr::opts_chunk$set(echo = TRUE)
 if(!require('pacman')) {install.packages('pacman')}
 pacman::p_load(tidyverse, dplyr, ggplot2, ggthemes, data.table, lubridate,
-               GGally, RColorBrewer, ggsci, plotROC, usmap,
-               plotly, ggpubr, vistime, RCurl, RJSONIO, sf, tigris)
+               RColorBrewer, ggsci, plotROC, usmap,
+               plotly, ggpubr, vistime, RCurl, RJSONIO, sf, tigris, devtools)
+library(dplyr)
 ```
 
 ## R Markdown
@@ -286,13 +287,13 @@ sdl7$Estimate..SEX.AND.AGE..Total.population <- sdl1$Estimate..SEX.AND.AGE..Tota
 sdl7$Estimate..VALUE..Owner.occupied.units..Median..dollars. <- sdl1$Estimate..VALUE..Owner.occupied.units..Median..dollars.
 
 names(sdl7)
-
+detach("package:plyr", unload = TRUE)
 # Join on county and state variables onto data layer
 sdl8 <- sdl7 %>%
   left_join(fipsLookUp, by="fips") %>%
   select(fips,County,State,totalKillings,killingRate,killingRateLog,everything()) %>%
   select(-ï..FIPS, -Estimate..HOUSING.OCCUPANCY..Total.housing.units..Homeowner.vacancy.rate, -Estimate..HOUSING.OCCUPANCY..Total.housing.units..Rental.vacancy.rate)
-  
+
 # options(max.print=400)
 ```
 
@@ -367,4 +368,95 @@ fit.min.lm %>%
 ```
 
 ```{r}
+p <- ggplot(data=killdata_fips_year, aes(x=year, y=totalKillings)) +
+    geom_line() +
+    geom_point()
+p + xlim(c(2015, 2020)) +ylim(c(900, 1000))
+```
 
+```{r}
+install.packages("cli")
+devtools::install_github("UrbanInstitute/urbnmapr")
+```
+
+
+```{r}
+head(counties)
+```
+
+```{r}
+
+killdata_fips_yearcounty <-
+  killdata_clean %>%
+  mutate(date = as.Date(killdata_clean$date, format = "%m/%d/%Y")) %>%
+  mutate(year = lubridate::year(date)) %>%
+  group_by(mod_fips, year) %>%
+  summarise(totalKillings = n()) %>%
+  rename(fips = mod_fips)
+
+left_join(killdata_fips_yearcounty, masterCensus_s2, by="fips") %>%
+  mutate(killingRate =  (totalKillings/Estimate..SEX.AND.AGE..Total.population)*100000) %>%
+  mutate(killingRateEff = coalesce(killingRate, 0.000001)) %>%
+  mutate(killingRateLog = log(killingRateEff)) %>%
+  select(fips,totalKillings,killingRate,killingRateLog,everything()) %>%
+  rename(county_fips = fips)
+
+county_map <- left_join(killdata_fips_yearcounty, counties, by = "county_fips", copy = TRUE) 
+
+##county_map %>%
+  ##ggplot(aes(long, lat, group = group, fill = medhhincome)) +
+  ##geom_polygon(color = NA) +
+  ##coord_map(projection = "albers", lat0 = 39, lat1 = 45) +
+  ##labs(fill = "Median Household Income")
+
+##group_by(mod_fips, year) %>%
+  #rename(fips = mod_fips) %>%
+  #summarise(totalKillings = n())
+
+#killdata_fips_yearcounty
+
+
+
+
+
+
+
+
+
+```
+
+```{r}
+
+killdata_fips_county <-
+  killdata_clean %>%
+  mutate(date = as.Date(killdata_clean$date, format = "%m/%d/%Y")) %>%
+  mutate(year = lubridate::year(date)) %>%
+  group_by(mod_fips) %>%
+  summarise(totalKillings = n()) %>%
+  rename(fips = mod_fips)
+head(killdata_fips_county)
+```
+
+```{r}
+fulldata <- left_join(killdata_fips_county, masterCensus_s2, by="fips") %>%
+  mutate(killingRate =  (totalKillings/Estimate..SEX.AND.AGE..Total.population)*100000) %>%
+  mutate(killingRateEff = coalesce(killingRate, 0.000001)) %>%
+  mutate(killingRateLog = log(killingRateEff)) %>%
+  rename(county_fips = fips) %>%
+  select(county_fips,totalKillings,killingRate,killingRateLog)
+head(fulldata)
+```
+
+```{r}
+counties_sf <- get_urbn_map(map = "counties", sf = TRUE)
+head(counties_sf)
+```
+
+```{r}
+county_map <- left_join(counties_sf, fulldata, by = "county_fips", copy = TRUE)
+county_map %>%
+  ggplot() +
+  geom_sf(mapping = aes(fill = killingRate),
+          color = NA, size = 0.05) +
+  labs(fill = "Killing Rate")
+```
