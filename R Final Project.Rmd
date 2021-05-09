@@ -2,7 +2,9 @@
 title: "Final Project"
 author: "Phillip Ross, Ming Chen, Hersh Agarwal"
 date: "5/6/2021"
-output: html_document
+output:
+  pdf_document: default
+  html_document: default
 ---
 
 ```{r setup, include=FALSE}
@@ -16,6 +18,13 @@ pacman::p_load(tidyverse, dplyr, ggplot2, ggthemes, data.table, lubridate,
 ## R Markdown
 
 ```{r}
+if("dplyr" %in% (.packages())){
+          detach("package:dplyr", unload=TRUE) 
+          detach("package:plyr", unload=TRUE) 
+} 
+library(plyr)
+library(dplyr)
+
 # Read-in data
 
 # These are census shape files which we need to map latitude and longitutde to FIPs codes
@@ -222,7 +231,6 @@ table(unlist(sdl2, use.names = FALSE)[(!grepl('^[0-9]',unlist(sdl2, use.names = 
 # It looks like things are coded (X) or N if they are missing; let's look at which columns have a high percentage of (X) or N and are thus worth dropping
 
 # Flag any column where more than half the values are '(X)'
-library(plyr)
 count.X.per.column <- ldply(sdl2, function(c) sum(c=="(X)"))
 columnsToExclude1 <- count.X.per.column$.id[count.X.per.column$V1 > 420]
 
@@ -285,13 +293,13 @@ sdl7$Estimate..SELECTED.MONTHLY.OWNER.COSTS..SMOC...Housing.units.without.a.mort
 sdl7$Estimate..SEX.AND.AGE..Total.population <- sdl1$Estimate..SEX.AND.AGE..Total.population
 sdl7$Estimate..VALUE..Owner.occupied.units..Median..dollars. <- sdl1$Estimate..VALUE..Owner.occupied.units..Median..dollars.
 
-names(sdl7)
+# names(sdl7)
 
 # Join on county and state variables onto data layer
 sdl8 <- sdl7 %>%
   left_join(fipsLookUp, by="fips") %>%
   select(fips,County,State,totalKillings,killingRate,killingRateLog,everything()) %>%
-  select(-ï..FIPS, -Estimate..HOUSING.OCCUPANCY..Total.housing.units..Homeowner.vacancy.rate, -Estimate..HOUSING.OCCUPANCY..Total.housing.units..Rental.vacancy.rate)
+  select(-ï..FIPS)
   
 # options(max.print=400)
 ```
@@ -346,7 +354,7 @@ plot(fit.lasso.0)
 
 # Identify variables associated with MSE at 1SE above minimum
 coef.1se <- coef(fit.lasso.0, s="lambda.1se")
-coef.1se <- coef.1se[which(coef.1se !=0),]
+coef.1se <- coef.1se[which(coef.1se != 0),]
 var.1se <- rownames(as.matrix(coef.1se))[-1]
 
 # Extract selected variables out of data-set
