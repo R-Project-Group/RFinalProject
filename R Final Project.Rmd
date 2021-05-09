@@ -256,6 +256,14 @@ columnsToExclude4 <- names(colMax)[colMax>100]
 sdl7 <- sdl6 %>%
   select(-columnsToExclude4)
 
+## NEW ADDITIONS ##
+manualForceIn <- read.csv('census_columns_keep.csv.', header = FALSE)
+manualForceIn[1,] <- "Estimate..SEX.AND.AGE..Total.population"
+
+manualForceInCols <- intersect(names(sdl7), manualForceIn[,1])
+
+sdl7 <- sdl7[, manualForceInCols]
+
 # Re-add response variables back to cleaned census data
 sdl7$fips <- sdl1$fips
 sdl7$totalKillings <- sdl1$totalKillings
@@ -317,7 +325,7 @@ Y <- sdl9sub$killingRateLog
 
 # Run CV glmnet with ten-folds
 fit.lasso.0 <- glmnet::cv.glmnet(X.fl,Y, nfolds = 10, intercept =T)
-names(fit.lasso.0)
+plot(fit.lasso.0)
 
 # Identify variables associated with MSE at 1SE above minimum
 coef.1se <- coef(fit.lasso.0, s="lambda.1se")
@@ -337,3 +345,6 @@ library(gtsummary)
 fit.min.lm %>%
     tbl_regression()
 ```
+
+```{r}
+
