@@ -3,8 +3,8 @@ title: "Final Project"
 author: "Phillip Ross, Ming Chen, Hersh Agarwal"
 date: "5/6/2021"
 output:
-  pdf_document: default
   html_document: default
+  pdf_document: default
 ---
 
 ```{r setup, include=FALSE}
@@ -18,11 +18,6 @@ pacman::p_load(tidyverse, dplyr, ggplot2, ggthemes, data.table, lubridate,
 ## R Markdown
 
 ```{r}
-if("dplyr" %in% (.packages())){
-          detach("package:dplyr", unload=TRUE) 
-          detach("package:plyr", unload=TRUE) 
-} 
-library(plyr)
 library(dplyr)
 
 # Read-in data
@@ -144,7 +139,7 @@ killdata_FIPS <- killdata_clean %>% # Create a county-level data-set with # of k
   group_by(mod_fips) %>%
   summarise(totalKillings = n()) %>%
   rename(fips = mod_fips)
-
+ 
 paretoData <- arrange(killdata_FIPS, desc(totalKillings)) %>%
   mutate(cumsum = cumsum(totalKillings),
          freq = round(totalKillings/sum(totalKillings), 3), 
@@ -231,8 +226,17 @@ table(unlist(sdl2, use.names = FALSE)[(!grepl('^[0-9]',unlist(sdl2, use.names = 
 # It looks like things are coded (X) or N if they are missing; let's look at which columns have a high percentage of (X) or N and are thus worth dropping
 
 # Flag any column where more than half the values are '(X)'
-count.X.per.column <- ldply(sdl2, function(c) sum(c=="(X)"))
-columnsToExclude1 <- count.X.per.column$.id[count.X.per.column$V1 > 420]
+
+
+install.packages("remotes")
+library(remotes)
+
+library(plyr)
+
+count.X.per.column <- apply(sdl2, function(c) sum(c=="(X)"))
+
+# count.X.per.column <- ldply(sdl2, function(c) sum(c=="(X)"))
+# columnsToExclude1 <- count.X.per.column$.id[count.X.per.column$V1 > 420]
 
 # Flag any column where more than half of the values are 'N'
 count.N.per.column <- ldply(sdl2, function(c) sum(c=="N"))
@@ -362,12 +366,12 @@ var.1se <- coef.1se@Dimnames[[1]][coef.1se@i + 1][-1]
 data.fl.sub <- sdl9sub[,c("killingRateLog", var.1se)] # get a 
 
 # names(sdl9sub)
-# var.min
+#var.min
 
 # Use selected variables in Relaxed-LASSO
 fit.min.lm <- lm(killingRateLog~., data=data.fl.sub)
 
-install.packages('gtsummary')
+# install.packages('gtsummary')
 library(gtsummary)
 
 # Get summary of regression results
