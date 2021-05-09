@@ -185,8 +185,9 @@ masterCensus_s2$fips <- str_sub(masterCensus_s2$id, -5, -1)
 
 sdl1 <- masterCensus_s2 %>%
     left_join(killdata_FIPS, by="fips") %>%
-    mutate(killingRate = totalKillings/Estimate..SEX.AND.AGE..Total.population) %>%
-    mutate(killingRateLog = log(killingRate)) %>%
+    mutate(killingRate =  totalKillings/Estimate..SEX.AND.AGE..Total.population) %>%
+    mutate(killingRateEff = coalesce(killingRate, 0.000001)) %>%
+    mutate(killingRateLog = log(killingRateEff)) %>%
     select(fips,totalKillings,killingRate,killingRateLog,everything())
 
 # Step 1 cleaning; only keep columns that have 'percentage' data
@@ -206,8 +207,6 @@ columnsToExclude1 <- count.X.per.column$.id[count.X.per.column$V1 > 420]
 # Flag any column where more than half of the values are N
 count.N.per.column <- ldply(sdl2, function(c) sum(c=="N"))
 columnsToExclude2 <- count.N.per.column$.id[count.N.per.column$V1 > 420]
-
-count.N.per.column <- ldply(sdl2, function(c) min())
 
 # Drop columns with too many NULL values
 sdl3 <- sdl2 %>%
@@ -239,8 +238,19 @@ columnsToExclude4 <- names(colMax)[colMax>100]
 sdl7 <- sdl6 %>%
   select(-columnsToExclude4)
 
-names(sdl7)
+sdl7$fips <- sdl1$fips
+sdl7$totalKillings <- sdl1$totalKillings
+sdl7$killingRate <- sdl1$killingRate
+sdl7$killingRateLog <- sdl1$killingRateLog
 
+names(sdl8)
+
+sdl8 <- sdl7 %>%
+  left_join(fipsLookUp, by="fips") %>%
+  select(fips,County,State,totalKillings,killingRate,killingRateLog,everything()) %>%
+  select(-ï..FIPS)
+  
+options(max.print=400)
 ```
 
 Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
@@ -265,31 +275,37 @@ Output variable: % of killings involving use of taser
 
 
 ```{r}
-head(sdl1)
+# head(sdl1)
 # turns all NAs into 0
-sdl2 <- sdl1 %>%
-  mutate_all(~replace(., is.na(.), 0)) %>%
-  relocate(totalKillings, .before = fips) %>%
-  relocate(killingRate, .before = fips) %>%
-  relocate(killingRateLog, .before = fips)
-is.na(sdl2$killingRateLog)
+# sdl2 <- sdl1 %>%
+#   mutate_all(~replace(., is.na(.), 0)) %>%
+#  relocate(totalKillings, .before = fips) %>%
+#  relocate(killingRate, .before = fips) %>%
+#  relocate(killingRateLog, .before = fips)
+#   is.na(sdl2$killingRateLog)
 
-names(sdl2)
+sdl8sub = sdl8[,-1:-5]
 
+sdl9sub <- sdl8sub %>%
+   mutate_all(~replace(., is.na(.), 0)) # glmnet doesn't play with NAs, so coalesce all NAs into 0
 
-```
-```{r}
 set.seed(1)
-X <- model.matrix(totalKillings~.,data=sdl2)
+X.fl <- model.matrix(killingRateLog~., data=sdl9sub)[,-1]
+Y <- sdl9sub$killingRateLog
 
-is.na(sdl2$totalKillings)
-help(model.matrix)
+fit.lasso.0 <- glmnet::cv.glmnet(X.fl,Y, nfolds = 10, intercept =T)
+names(fit.lasso.0)
 
+coef.1se <- coef(fit.lasso.0, s="lambda.1se")
+coef.1se <- coef.1se[which(coef.1se !=0),]
+var.1se <- rownames(as.matrix(coef.1se))[-1]
 
-[,-3]
-Y <- sdl1$killingRate
-fit.lasso.0 <- cv.glmnet(X,Y, nfolds = 10, intercept = T)
-plot(fit.lasso.0)
+data.fl.sub <- sdl9sub[,c("killingRateLog", var.1se)] # get a 
 
-sdl2[,-3]
+fit.min.lm <- lm(killingRateLog~., data=data.fl.sub) # debiased or relaxed LASSO
+
+install.packages('gtsummary')
+library(gtsummary)
+fit.min.lm %>%
+    tbl_regression()
 ```
