@@ -270,11 +270,28 @@ sdl7$totalKillings <- sdl1$totalKillings
 sdl7$killingRate <- sdl1$killingRate
 sdl7$killingRateLog <- sdl1$killingRateLog
 
+# Re-add key predictor variables which were excluded
+sdl7$fips <- sdl1$fips
+sdl7$Estimate..GROSS.RENT..Occupied.units.paying.rent..Median..dollars. <- sdl1$Estimate..GROSS.RENT..Occupied.units.paying.rent..Median..dollars.
+# sdl7$Estimate..HOUSING.OCCUPANCY..Total.housing.units..Homeowner.vacancy.rate <- sdl1$Estimate..HOUSING.OCCUPANCY..Total.housing.units..Homeowner.vacancy.rate
+# sdl7$Estimate..HOUSING.OCCUPANCY..Total.housing.units..Rental.vacancy.rate <- sdl1$Estimate..HOUSING.OCCUPANCY..Total.housing.units..Rental.vacancy.rate
+sdl7$Estimate..HOUSING.TENURE..Occupied.housing.units..Average.household.size.of.owner.occupied.unit <- sdl1$Estimate..HOUSING.TENURE..Occupied.housing.units..Average.household.size.of.owner.occupied.unit
+sdl7$Estimate..HOUSING.TENURE..Occupied.housing.units..Average.household.size.of.renter.occupied.unit <- sdl1$Estimate..HOUSING.TENURE..Occupied.housing.units..Average.household.size.of.renter.occupied.unit
+sdl7$Estimate..INCOME.AND.BENEFITS..IN.2019.INFLATION.ADJUSTED.DOLLARS...Per.capita.income..dollars. <- sdl1$Estimate..INCOME.AND.BENEFITS..IN.2019.INFLATION.ADJUSTED.DOLLARS...Per.capita.income..dollars.
+sdl7$Estimate..INCOME.AND.BENEFITS..IN.2019.INFLATION.ADJUSTED.DOLLARS...Total.households..Median.household.income..dollars. <- sdl1$Estimate..INCOME.AND.BENEFITS..IN.2019.INFLATION.ADJUSTED.DOLLARS...Total.households..Median.household.income..dollars.
+sdl7$Estimate..ROOMS..Total.housing.units..Median.rooms <- sdl1$Estimate..ROOMS..Total.housing.units..Median.rooms
+sdl7$Estimate..SELECTED.MONTHLY.OWNER.COSTS..SMOC...Housing.units.with.a.mortgage..Median..dollars. <- sdl1$Estimate..SELECTED.MONTHLY.OWNER.COSTS..SMOC...Housing.units.with.a.mortgage..Median..dollars.
+sdl7$Estimate..SELECTED.MONTHLY.OWNER.COSTS..SMOC...Housing.units.without.a.mortgage..Median..dollars. <- sdl1$Estimate..SELECTED.MONTHLY.OWNER.COSTS..SMOC...Housing.units.without.a.mortgage..Median..dollars.
+sdl7$Estimate..SEX.AND.AGE..Total.population <- sdl1$Estimate..SEX.AND.AGE..Total.population
+sdl7$Estimate..VALUE..Owner.occupied.units..Median..dollars. <- sdl1$Estimate..VALUE..Owner.occupied.units..Median..dollars.
+
+names(sdl7)
+
 # Join on county and state variables onto data layer
 sdl8 <- sdl7 %>%
   left_join(fipsLookUp, by="fips") %>%
   select(fips,County,State,totalKillings,killingRate,killingRateLog,everything()) %>%
-  select(-ï..FIPS)
+  select(-ï..FIPS, -Estimate..HOUSING.OCCUPANCY..Total.housing.units..Homeowner.vacancy.rate, -Estimate..HOUSING.OCCUPANCY..Total.housing.units..Rental.vacancy.rate)
   
 # options(max.print=400)
 ```
@@ -334,6 +351,9 @@ var.1se <- rownames(as.matrix(coef.1se))[-1]
 
 # Extract selected variables out of data-set
 data.fl.sub <- sdl9sub[,c("killingRateLog", var.1se)] # get a 
+
+names(sdl9sub)
+var.min
 
 # Use selected variables in Relaxed-LASSO
 fit.min.lm <- lm(killingRateLog~., data=data.fl.sub)
