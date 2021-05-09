@@ -433,13 +433,53 @@ It looks like generally, the more populous areas of the country have higher rate
 
 ```{r}
 killdata_raceanalysis <- killdata_clean %>%
+  rename(fips = mod_fips) %>%
   filter(race == 'B') %>%
-  group_by(mod_fips) %>%
-  dplyr::summarise(totalKillings = n()) %>%
-  dplyr::rename(fips = mod_fips)
-parent of 2a91750 (Code for Hersh)
+  group_by(fips) %>%
+  summarise(totalBlackKillings = n()) %>%
+  left_join(masterCensus_s2, by="fips") %>%
+  mutate(blackPop = as.numeric(Percent..Race.alone.or.in.combination.with.one.or.more.other.races..Total.population..Black.or.African.American)/100*as.numeric(Estimate..SEX.AND.AGE..Total.population)) %>%
+  na.omit() %>%
+  mutate(blacksRatio = as.numeric(totalBlackKillings)/as.numeric(blackPop)) %>%
+  select(fips, totalBlackKillings, blacksRatio, blackPop)
+
+
+killdata_FIPS2 <- killdata_FIPS %>%
+  left_join(masterCensus_s2, by="fips") %>%
+  na.omit() %>%
+  mutate(overallRatio = as.numeric(totalKillings)/as.numeric(Estimate..SEX.AND.AGE..Total.population)) %>%
+  select(fips, totalKillings, overallRatio, Estimate..SEX.AND.AGE..Total.population,) %>%
+  rename(overallPop = Estimate..SEX.AND.AGE..Total.population)
+
+
+killdata_raceanalysis <- killdata_raceanalysis %>%
+  left_join(killdata_FIPS2, by="fips") %>%
+  mutate(ratioDiff = blacksRatio - overallRatio)
+
+head(killdata_raceanalysis)
+
+
+
 
 ```
+
+
+```{r}
+
+plot(x = killdata_raceanalysis$blacksRatio, 
+     y = killdata_raceanalysis$overallRatio, 
+     pch  = 16,     # "point character": shape/character of points 
+     cex  = 0.8,    # size
+     col  = "blue", # color 
+     xlab = "Black Ratio",  # x-axis
+     ylab = "Overall Ratio",  # y-axis 
+     main = "Comparison of Killings/Population Ratio")
+
+
+```
+
+
+
 
 ```{r}
 #creates new data frame that groups killings by fips AND year
