@@ -43,7 +43,7 @@ The summary of our findings is below.
 
 There were several drawbacks to our data. Not all of the police killings in the Washington Post data had longitudes and latitudes, so we had to remove them (~300 killings out of 6,300).
 
-One of the next analyses we would like to do would be to repeat our analyses for total killings for counties with disproportionate African American killings, to see whether different factors lead to higher rates of African American killings compared to overall level of killings. We would also like to do further research to see if we could isolate other sources of data to analyze killings at the city level, which may remove some of the noise at the county level (for example, if certain counties had just one city vs. multiple cities).  
+One of the next analyses we would like to do would be to repeat our analyses for total killings for counties with disproportionate African American killings, to see whether different factors lead to higher rates of African American killings compared to overall level of killings. We would also like to do further research to see if we could isolate other sources of data to analyze killings at the city level, which may remove some of the noise at the county level (for example, if certain counties had just one city vs. multiple cities). We'd also like to add in crime statistics
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
@@ -235,6 +235,14 @@ The maximum number of total killings is in Los Angeles County at 255.
 
 Have killings increased over time? We look at this broadly here.
 ```{r}
+<<<<<<< Updated upstream
+=======
+
+# install.packages('skimr')
+library(skimr)
+# summary(killdata_clean)
+
+>>>>>>> Stashed changes
 # Evaluate data across time
 killdata_fips_year <- killdata_clean %>%
   mutate(date = as.Date(killdata_clean$date, format = "%m/%d/%Y")) %>%
@@ -553,7 +561,52 @@ county_map_filtered2 %>%
 
 It is again difficult to discern a particular pattern between years, but it does appear that in the majority of the years, the West has many of the counties with the highest rate of Police Killings. 
 
+<<<<<<< Updated upstream
 Analysis of black killings per capita vs. overall killings per capita
+=======
+#Model Selection
+
+```{r}
+# Remove non-predictive variables
+sdl8sub = sdl8[,-1:-5]
+
+# Glmnet doesn't play with NAs, so coalesce all NAs into 0
+sdl9sub <- sdl8sub %>%
+   mutate_all(~replace(., is.na(.), 0)) 
+
+set.seed(1)
+
+# Create model matrix for GLM
+X.fl <- model.matrix(killingRateLog~., data=sdl9sub)[,-1]
+Y <- sdl9sub$killingRateLog
+
+# Run CV glmnet with ten-folds
+fit.lasso.0 <- glmnet::cv.glmnet(X.fl,Y, nfolds = 10, intercept =T)
+plot(fit.lasso.0)
+
+# Identify variables associated with MSE at 1SE above minimum
+coef.1se <- coef(fit.lasso.0, s="lambda.1se")
+var.1se <- coef.1se@Dimnames[[1]][coef.1se@i + 1][-1]
+
+# Extract selected variables out of data-set
+data.fl.sub <- sdl9sub[,c("killingRateLog", var.1se)] # get a 
+
+# Use selected variables in Relaxed-LASSO
+fit.min.lm <- lm(killingRateLog~., data=data.fl.sub)
+
+library(gtsummary)
+
+# Get summary of regression results
+fit.min.lm %>%
+    tbl_regression()
+fit.min.lm
+```
+
+
+Racial Disparities: In this section, we wanted to deep dive into the racial disparities between in the killing rate and adjust for the population levels of each race within the county. The reason for this deeper look is because we were surprised to see a relatively low presence of racial factors in our earlier model, and believe this topic deserves a closer look, especially with the prominence of this topic over the past year in the US.
+
+
+>>>>>>> Stashed changes
 ```{r}
 
 killdata_raceanalysis <- killdata_clean %>%
@@ -607,7 +660,7 @@ usasiandeaths/usasianpop*100000
 
 ```
 
-On a national level, there are clear racial disparities among the per capita rate of police killings. When looking at the number of killings of a particular race per 10K population of that race, we can see that black Americans are killed at over 2x the rate of white Americans. Those of Hispanic descent are killed about 1/3 higher rate than white Americans. Asian Americans are killed at a significantly lower rate by police than any other racial group. While there are certainly many other factors that contribute to a difference in the rate of police killings, the huge disparity suggests that race should be considered as a factor when discussing how to tackle this issue.
+On a national level, there are clear racial disparities among the per capita rate of police killings. When looking at the number of killings of a particular race per 100K population of that race, we can see that black Americans are killed at over 2x the rate of white Americans. Those of Hispanic descent are killed about 1/3 higher rate than white Americans. Asian Americans are killed at a significantly lower rate by police than any other racial group. While there are certainly many other factors that contribute to a difference in the rate of police killings, the huge disparity suggests that race should be considered as a factor when discussing how to tackle this issue.
 
 
 ```{r}
