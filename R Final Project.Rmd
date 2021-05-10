@@ -431,6 +431,8 @@ county_map_filtered %>%
 ```
 It looks like generally, the more populous areas of the country have higher rates of killing (lots of Midwestern counties with zero killings). The southwest in particular seems to be an area with especially higher rates of killing. 
 
+
+Analysis of black killings per capita vs. overall killings per capita
 ```{r}
 killdata_raceanalysis <- killdata_clean %>%
   rename(fips = mod_fips) %>%
@@ -457,6 +459,9 @@ killdata_raceanalysis <- killdata_raceanalysis %>%
   mutate(ratioDiff = blacksRatio - overallRatio)
 
 head(killdata_raceanalysis)
+
+sum(killdata_clean$race == 'B', na.rm=TRUE)
+sum(masterCensus_s2$Percent..Race.alone.or.in.combination.with.one.or.more.other.races..Total.population..Black.or.African.American)
 
 ```
 
@@ -488,7 +493,7 @@ plot(x = killdata_raceanalysis$blacksRatio,
      abline(lm(overallRatio ~ blacksRatio, data = killdata_raceanalysis), col = "blue"))
     
 ```
-
+Blacks are killed at a significantly higher rate than the rest of the population on a per capita basis.
 
 
 
