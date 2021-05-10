@@ -512,13 +512,35 @@ killdata_FIPS2 <- killdata_FIPS %>%
 killdata_raceanalysis <- killdata_raceanalysis %>%
   left_join(killdata_FIPS2, by="fips") %>%
   mutate(ratioDiff = blacksRatio - overallRatio)
+  
 
-head(killdata_raceanalysis)
+uswhitedeaths <- sum(killdata_clean$race == 'W', na.rm=TRUE)
+uswhitepop <- masterCensus_s2$Estimate..Race.alone.or.in.combination.with.one.or.more.other.races..Total.population..White %>%
+  as.numeric()
+uswhitepop <- sum(uswhitepop, na.rm=TRUE)
+usblackdeaths <- sum(killdata_clean$race == 'B', na.rm=TRUE)
+usblackpop <- masterCensus_s2$Estimate..Race.alone.or.in.combination.with.one.or.more.other.races..Total.population..Black.or.African.American %>%
+  as.numeric()
+usblackpop <- sum(usblackpop, na.rm=TRUE)
+ushispanicdeaths <- sum(killdata_clean$race == 'H', na.rm=TRUE)
+ushispanicpop <- masterCensus_s2$Estimate..HISPANIC.OR.LATINO.AND.RACE..Total.population..Hispanic.or.Latino..of.any.race. %>%
+  as.numeric()
+ushispanicpop<- sum(ushispanicpop, na.rm=TRUE)
+usasiandeaths <- sum(killdata_clean$race == 'A', na.rm=TRUE)
+usasianpop <- masterCensus_s2$Estimate..Race.alone.or.in.combination.with.one.or.more.other.races..Total.population..Asian %>%
+  as.numeric()
+usasianpop <- sum(usasianpop, na.rm=TRUE)
 
-sum(killdata_clean$race == 'B', na.rm=TRUE)
-sum(masterCensus_s2$Percent..Race.alone.or.in.combination.with.one.or.more.other.races..Total.population..Black.or.African.American)
+
+uswhitedeaths/uswhitepop*10000
+usblackdeaths/usblackpop*10000
+ushispanicdeaths/ushispanicpop*10000
+usasiandeaths/usasianpop*10000
+
 
 ```
+On a national level, there are clear racial disparities among the per capita rate of police killings. When looking at the number of killings of a particular race per 10K population of that race, we can see that black Americans are killed at over 2x the rate of white Americans. Those of Hispanic descent are killed about 1/3 higher rate than white Americans. Asian Americans are killed at a significantly lower rate by police than any other racial group. While there are certainly many other factors that contribute to a difference in the rate of police killings, the huge disparity suggests that race should be considered as a factor when discussing how to tackle this issue.
+
 
 
 ```{r}
@@ -528,27 +550,16 @@ plot(x = killdata_raceanalysis$blacksRatio,
      pch  = 16,     # "point character": shape/character of points 
      cex  = 0.8,    # size
      col  = "blue", # color 
-     xlab = "Black Killings per 10K Pop",  # x-axis
-     ylab = "Overall Killings per 10K Pop",  # y-axis 
-     main = "Comparison of Killings/Population Ratio",
+     xlab = "Black Killings per 10K Black Population",  # x-axis
+     ylab = "Overall Killings per 10K General Population",  # y-axis 
+     main = "Comparison of Killings/10K Population by County",
      xlim=c(0,3),
      ylim=c(0,1),
      abline(coef = c(0,1)))
 
-plot(x = killdata_raceanalysis$blacksRatio, 
-     y = killdata_raceanalysis$overallRatio, 
-     pch  = 16,     # "point character": shape/character of points 
-     cex  = 0.8,    # size
-     col  = "blue", # color 
-     xlab = "Black Killings per 10K Pop",  # x-axis
-     ylab = "Overall Killings per 10K Pop",  # y-axis 
-     main = "Comparison of Killings/Population Ratio",
-     xlim=c(0,3),
-     ylim=c(0,1),
-     abline(lm(overallRatio ~ blacksRatio, data = killdata_raceanalysis), col = "blue"))
-    
+
 ```
-Blacks are killed at a significantly higher rate than the rest of the population on a per capita basis.
+This scatter plot displays counties in the US along the ratio of black Americans killed by the ratio of the general population killed. The line dividing the plot has a slope of one, so counties alongside the line have a black ratio equal to the general ratio of killing per 10K residents. There are a few takeaways from this plot. First, it's clear that this is a widespread issue plaguing much of the United States, and is not a result of a few "bad areas" driving up the racial disparity, demonstrated by the vast number of points to the right of the line. Second, there are in fact many counties where there are extremely high levels of racial disparity where the federal or state government may need to review police training at the local levels.
 
 
 
