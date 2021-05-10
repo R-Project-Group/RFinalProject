@@ -205,7 +205,6 @@ killdata_FIPS$totalKillings[which.max(killdata_FIPS$totalKillings)]
 ```
 
 ```{r}
-
 # install.packages('skimr')
 library(skimr)
 # summary(killdata_clean)
@@ -347,8 +346,52 @@ var.1se <- coef.1se@Dimnames[[1]][coef.1se@i + 1][-1]
 # Extract selected variables out of data-set
 data.fl.sub <- sdl9sub[,c("killingRateLog", var.1se)] # get a 
 
+# Re-name columns so that the regression output is more presentable
+data.fl.sub2 <- data.fl.sub %>%
+  rename(Pop_OneRace = Percent..RACE..Total.population..One.race) %>%
+  rename(Pop_White = Percent..Race.alone.or.in.combination.with.one.or.more.other.races..Total.population..White) %>%
+  rename(Pop_AmericanIndianAlaskan = Percent..Race.alone.or.in.combination.with.one.or.more.other.races..Total.population..American.Indian.and.Alaska.Native) %>%
+  rename(Pop_HispanicLatino = Percent..HISPANIC.OR.LATINO.AND.RACE..Total.population..Hispanic.or.Latino..of.any.race.) %>%
+  rename(Income_25to35k = Percent..INCOME.AND.BENEFITS..IN.2019.INFLATION.ADJUSTED.DOLLARS...Total.households...25.000.to..34.999) %>%
+  rename(Income_50to75k = Percent..INCOME.AND.BENEFITS..IN.2019.INFLATION.ADJUSTED.DOLLARS...Total.households...50.000.to..74.999) %>%
+  rename(Income_wSocialSec = Percent..INCOME.AND.BENEFITS..IN.2019.INFLATION.ADJUSTED.DOLLARS...Total.households..With.Social.Security) %>%
+  rename(Income_wSuppSec = Percent..INCOME.AND.BENEFITS..IN.2019.INFLATION.ADJUSTED.DOLLARS...Total.households..With.Supplemental.Security.Income) %>%
+  rename(Income_foodStamp = Percent..INCOME.AND.BENEFITS..IN.2019.INFLATION.ADJUSTED.DOLLARS...Total.households..With.Food.Stamp.SNAP.benefits.in.the.past.12.months) %>% 
+  rename(HealthCoverage = Percent..HEALTH.INSURANCE.COVERAGE..Civilian.noninstitutionalized.population..With.health.insurance.coverage) %>%
+  rename(PrivHealthCov = Percent..HEALTH.INSURANCE.COVERAGE..Civilian.noninstitutionalized.population..With.health.insurance.coverage..With.private.health.insurance) %>%
+  rename(noHealthCov = Percent..HEALTH.INSURANCE.COVERAGE..Civilian.noninstitutionalized.population..No.health.insurance.coverage) %>%
+  rename(edu_BlackHighSchool = Estimate..Percent..RACE.AND.HISPANIC.OR.LATINO.ORIGIN.BY.EDUCATIONAL.ATTAINMENT..Black.alone..High.school.graduate.or.higher) %>%
+  rename(vacantHousing = Percent..HOUSING.OCCUPANCY..Total.housing.units..Vacant.housing.units) %>%
+  rename(duplexes = Percent..UNITS.IN.STRUCTURE..Total.housing.units..2.units) %>%
+  rename(mdus = Percent..UNITS.IN.STRUCTURE..Total.housing.units..5.to.9.units) %>%
+  rename(mobileHomes = Percent..UNITS.IN.STRUCTURE..Total.housing.units..Mobile.home) %>%
+  rename(twoVehiclesAvailable = Percent..VEHICLES.AVAILABLE..Occupied.housing.units..2.vehicles.available) %>%
+  rename(noPlumbing = Percent..SELECTED.CHARACTERISTICS..Occupied.housing.units..Lacking.complete.plumbing.facilities) %>%
+  rename(houseswMortages = Percent..MORTGAGE.STATUS..Owner.occupied.units..Housing.units.with.a.mortgage) %>%
+  rename(medianRent = Estimate..GROSS.RENT..Occupied.units.paying.rent..Median..dollars.) %>%
+  rename(roomsInHousing = Estimate..ROOMS..Total.housing.units..Median.rooms) %>%
+  rename(ownerCostsHousing = Estimate..SELECTED.MONTHLY.OWNER.COSTS..SMOC...Housing.units.without.a.mortgage..Median..dollars.) %>%
+  rename(totalPop = Estimate..SEX.AND.AGE..Total.population)
+
+names(data.fl.sub)
+
 # Use selected variables in Relaxed-LASSO
-fit.min.lm <- lm(killingRateLog~., data=data.fl.sub)
+fit.min.lm <- lm(killingRateLog~., data=data.fl.sub2)
+
+# We compare this against the model with the full set of variables
+fit.all.lm <- lm(killingRateLog~., data=sdl9sub)
+
+summary(fit.min.lm)
+# summary(fit.all.lm)
+# R^2 is only 0.3261
+
+# Diagnostic plots
+plot(fit.min.lm$fitted, fit.min.lm$residuals,
+pch = 16,
+main = "residual plot")
+abline(h=0, lwd=4, col="red")
+
+qqnorm(fit.min.lm$residuals)
 
 library(gtsummary)
 
