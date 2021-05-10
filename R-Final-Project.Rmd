@@ -13,37 +13,18 @@ output: html_document
 Police killings have been on the forefront of the news in the recent years and is a prominent issue the United States is facing today. Our objective in this study is to identify insights within this dataset that may illuminate drivers of killings and identify possible biases in how police use lethality in their techniques.
 
 ## Data sources
-The primary data-set our study is based on is a police killings database maintained by the Washington Post. The data is comprehensive starting from January 1st, 2015 through early May 2021, compiled from local news reports, law enforcement websites, and mining independent databases dedicated to tracking police killings. See the source article here: https://www.washingtonpost.com/graphics/investigations/police-shootings-database/ and the available data here: https://github.com/washingtonpost/data-police-shootings. 
+The primary data-set our study is based on is a police killings database maintained by the Washington Post. The data is comprehensive starting from January 1st, 2015 through early May 2021, compiled from local news reports, law enforcement websites, and mining independent databases dedicated to tracking police killings. See the source article here: https://www.washingtonpost.com/graphics/investigations/police-shootings-database/ and the available data here: https://github.com/washingtonpost/data-police-shootings
 
 To supplement this data, we utilized the Census Bureau data tool to download demographic and economic information available at the county level and joined it with the killings data by county (or FIPS code). The Census Bureau has a data query tool that appears fairly comprehensive but is also a bit un-intuitive to use. Nonetheless, we pulled in five different county-level data-sets from the American Community Survey which was last taken in 2019. These reports include 1) Demographics and Housing, Educational Attainment, Financial Characteristics, Selected Economics Characteristics, Selected Housing Characteristics. 
 
-We then assign killings to each county using longitude and latitude data, and then joined the census data, such as income, race, and population data for each county with the killings data by FIPS County Code. Our focus was largely at the county level, since it was difficult to get the data necessary from the census at the city level, and the state level was not granular enough. We performed the following  analyses to understand insights from the data.
+#to do - list what we did. 
 
-## List of Analyses
-
-1. We examined whether certain counties had a disproportionate percentage of the total killings using a Pareto chart. 
-2. We graphed killings by year to see whether there was a time series trend. 
-3. We looked at the counties with the highest killing rate to see if there was any trend among them. 
-4. We mapped all counties, over the full six completed year period (2015-2020) and by year to see if there was any discernable trend. 
-5. We looked at killings by race. 
-6. We used model selection (LASSO) to come up a multi-variate model to try and predict the factors to lead to higher rates of police killings.  
+#conclusion
 
 ## Findings
 
-The summary of our findings is below. 
-
-1. Certain counties, especially larger counties such as LA County, make up a disproportionate number of the absolute number of police killings, which is unsurprising. 
-2. The absolute number of police killings has bounced around over the last 6 years, with 2015 being the highest. If anything, odd years have a higher number of killings, which is likely just random noise.  
-3. While difficult to note a trend among the 10 counties with the highest rates of police killings, we did note that all 10 were in the West (or at least Midwest, depending on how you classify Missouri and Oklahoma).  
-4. There was again no discernable trend by year, however again most of the high killing rate counties were in the West and Southwest. 
-5. Unsurprisingly, given the backdrop of this project, African Americans were killed at the highest rates relative to their population. x, and x were the next two, at lower rates. x faced the lowest rate of police killings.  
-6. Our model came up with x factors at the 0.05 significance level cut off, with an overall R squared of x, which for real world data is a decent result. X, X, X were factors that increased the rate of police killings while x, x and x were factors that decreased the rate of police killings.   
-
-#Caveats & Next Steps
-
-There were several drawbacks to our data. Not all of the police killings in the Washington Post data had longitudes and latitudes, so we had to remove them (~300 killings out of 6,300).
-
-One of the next analyses we would like to do would be to repeat our analyses for total killings for counties with disproportionate African American killings, to see whether different factors lead to higher rates of African American killings compared to overall level of killings. We would also like to do further research to see if we could isolate other sources of data to analyze killings at the city level, which may remove some of the noise at the county level (for example, if certain counties had just one city vs. multiple cities).  
+#regression / lasso
+#data vis, counties
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
@@ -337,6 +318,48 @@ sdl8 <- sdl7 %>%
   select(-ï..FIPS)
 # options(max.print=400)
 ```
+
+#Model Selection
+
+```{r}
+
+# Remove non-predictive variables
+sdl8sub = sdl8[,-1:-5]
+
+# Glmnet doesn't play with NAs, so coalesce all NAs into 0
+sdl9sub <- sdl8sub %>%
+   mutate_all(~replace(., is.na(.), 0)) 
+
+set.seed(1)
+
+# Create model matrix for GLM
+X.fl <- model.matrix(killingRateLog~., data=sdl9sub)[,-1]
+Y <- sdl9sub$killingRateLog
+
+# Run CV glmnet with ten-folds
+fit.lasso.0 <- glmnet::cv.glmnet(X.fl,Y, nfolds = 10, intercept =T)
+plot(fit.lasso.0)
+
+# Identify variables associated with MSE at 1SE above minimum
+coef.1se <- coef(fit.lasso.0, s="lambda.1se")
+var.1se <- coef.1se@Dimnames[[1]][coef.1se@i + 1][-1]
+
+# Extract selected variables out of data-set
+data.fl.sub <- sdl9sub[,c("killingRateLog", var.1se)] # get a 
+
+# Use selected variables in Relaxed-LASSO
+fit.min.lm <- lm(killingRateLog~., data=data.fl.sub)
+
+library(gtsummary)
+
+# Get summary of regression results
+fit.min.lm %>%
+    tbl_regression()
+fit.min.lm
+```
+
+
+
 ```{r}
 # Runs a linear chart for killings each year
 p <- ggplot(data=killdata_fips_year, aes(x=year, y=totalKillings)) +
@@ -400,91 +423,6 @@ county_map_filtered %>%
   scale_fill_distiller(palette = "Spectral")
 ```
 It looks like generally, the more populous areas of the country have higher rates of killing (lots of Midwestern counties with zero killings). The southwest in particular seems to be an area with especially higher rates of killing. 
-
-```{r}
-#creates new data frame that groups killings by fips AND year
-killdata_fips_yearcounty <-
-  killdata_clean %>%
-  mutate(date = as.Date(killdata_clean$date, format = "%m/%d/%Y")) %>%
-  mutate(year = lubridate::year(date)) %>%
-  group_by(mod_fips, year) %>%
-  summarise(totalKillings = n()) %>%
-  rename(fips = mod_fips)
-```
-
-```{r}
-#joins that data frame with census data to get a killing rate
-fulldata2 <- left_join(killdata_fips_yearcounty, masterCensus_s2, by="fips") %>%
-  mutate(killingRate =  (totalKillings/Estimate..SEX.AND.AGE..Total.population)*100000) %>%
-  mutate(killingRateEff = coalesce(killingRate, 0.000001)) %>%
-  mutate(killingRateLog = log(killingRateEff)) %>%
-  rename(county_fips = fips) %>%
-  select(county_fips,totalKillings,killingRate, killingRateLog, year)
-```
-
-
-```{r}
-county_map2 <- left_join(counties_sf, fulldata2, by = "county_fips", copy = TRUE)
-county_map_filtered2 <- 
-  county_map2 %>%
-  filter(year < 2021 & year >2014) %>%
-  mutate_all(~replace(., is.na(.), 0)) 
-
-
-county_map_filtered2 %>%
-  ggplot() +
-  geom_sf(mapping = aes(fill = killingRate),
-          color = NA, size = 0.05) +
-  labs(fill = "Annual Rate of Police Killings") + 
-  scale_fill_distiller(palette = "Spectral") +
-  facet_wrap(~year)
-
-```
-```
-It is again difficult to discern a particular pattern between years, but it does appear that in the majority of the years, the West has many of the counties with the highest rate of Police Killings. 
-
-#Model Selection
-
-```{r}
-
-# Remove non-predictive variables
-sdl8sub = sdl8[,-1:-5]
-
-# Glmnet doesn't play with NAs, so coalesce all NAs into 0
-sdl9sub <- sdl8sub %>%
-   mutate_all(~replace(., is.na(.), 0)) 
-
-set.seed(1)
-
-# Create model matrix for GLM
-X.fl <- model.matrix(killingRateLog~., data=sdl9sub)[,-1]
-Y <- sdl9sub$killingRateLog
-
-# Run CV glmnet with ten-folds
-fit.lasso.0 <- glmnet::cv.glmnet(X.fl,Y, nfolds = 10, intercept =T)
-plot(fit.lasso.0)
-
-# Identify variables associated with MSE at 1SE above minimum
-coef.1se <- coef(fit.lasso.0, s="lambda.1se")
-var.1se <- coef.1se@Dimnames[[1]][coef.1se@i + 1][-1]
-
-# Extract selected variables out of data-set
-data.fl.sub <- sdl9sub[,c("killingRateLog", var.1se)] # get a 
-
-# Use selected variables in Relaxed-LASSO
-fit.min.lm <- lm(killingRateLog~., data=data.fl.sub)
-
-library(gtsummary)
-
-# Get summary of regression results
-fit.min.lm %>%
-    tbl_regression()
-fit.min.lm
-```
-
-
-
-
 
 
 Analysis of black killings per capita vs. overall killings per capita
@@ -552,4 +490,44 @@ Blacks are killed at a significantly higher rate than the rest of the population
 
 
 
+```{r}
+#creates new data frame that groups killings by fips AND year
+killdata_fips_yearcounty <-
+  killdata_clean %>%
+  mutate(date = as.Date(killdata_clean$date, format = "%m/%d/%Y")) %>%
+  mutate(year = lubridate::year(date)) %>%
+  group_by(mod_fips, year) %>%
+  summarise(totalKillings = n()) %>%
+  rename(fips = mod_fips)
+```
 
+```{r}
+#joins that data frame with census data to get a killing rate
+fulldata2 <- left_join(killdata_fips_yearcounty, masterCensus_s2, by="fips") %>%
+  mutate(killingRate =  (totalKillings/Estimate..SEX.AND.AGE..Total.population)*100000) %>%
+  mutate(killingRateEff = coalesce(killingRate, 0.000001)) %>%
+  mutate(killingRateLog = log(killingRateEff)) %>%
+  rename(county_fips = fips) %>%
+  select(county_fips,totalKillings,killingRate, killingRateLog, year)
+```
+
+
+```{r}
+county_map2 <- left_join(counties_sf, fulldata2, by = "county_fips", copy = TRUE)
+county_map_filtered2 <- 
+  county_map2 %>%
+  filter(year < 2021 & year >2014) %>%
+  mutate_all(~replace(., is.na(.), 0)) 
+
+
+county_map_filtered2 %>%
+  ggplot() +
+  geom_sf(mapping = aes(fill = killingRate),
+          color = NA, size = 0.05) +
+  labs(fill = "Annual Rate of Police Killings") + 
+  scale_fill_distiller(palette = "Spectral") +
+  facet_wrap(~year)
+
+```
+```
+It is again difficult to discern a particular pattern between years, but it does appear that in the majority of the years, the West has many of the counties with the highest rate of Police Killings. 
