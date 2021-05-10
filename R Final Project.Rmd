@@ -5,6 +5,18 @@ date: "5/6/2021"
 output: html_document
 ---
 
+# What are the drivers of police killings in the US?
+
+## Executive Summary
+
+## Goal of the study
+Police killings have been on the forefront of the news in the recent years and is a prominent issue the United States is facing today. Our objective in this study is to identify insights within this dataset that may illuminate drivers of killings and identify possible biases in how police use lethality in their techniques.
+
+## Data sources
+The primary data-set our study is based on is a police killings database maintained by the Washington Post. The data is comprehensive starting from January 1st, 2015 through early May 2021, compiled from local news reports, law enforcement websites, and mining independent databases dedicated to tracking police killings. See the source article here: https://www.washingtonpost.com/graphics/investigations/police-shootings-database/ and the available data here: https://github.com/washingtonpost/data-police-shootings
+
+To supplement this data, we utilized the Census Bureau data tool to download demographic and economic information available at the county level and joined it with the killings data by county (or FIPS code). The Census Bureau has a data query tool that appears fairly comprehensive but is also a bit un-intuitive to use. Nonetheless, we pulled in five different county-level data-sets from the American Community Survey which was last taken in 2019. These reports include 1) Demographics and Housing, Educational Attainment, Financial Characteristics, Selected Economics Characteristics, Selected Housing Characteristics. 
+
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 if(!require('pacman')) {install.packages('pacman')}
