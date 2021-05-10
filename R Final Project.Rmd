@@ -451,13 +451,36 @@ killdata_raceanalysis <- killdata_raceanalysis %>%
   left_join(killdata_FIPS2, by="fips") %>%
   mutate(ratioDiff = blacksRatio - overallRatio)
 
-head(killdata_raceanalysis)
 
-sum(killdata_clean$race == 'B', na.rm=TRUE)
-sum(masterCensus_s2$Percent..Race.alone.or.in.combination.with.one.or.more.other.races..Total.population..Black.or.African.American)
+
+uswhitedeaths <- sum(killdata_clean$race == 'W', na.rm=TRUE)
+uswhitepop <- masterCensus_s2$Estimate..Race.alone.or.in.combination.with.one.or.more.other.races..Total.population..White %>%
+  as.numeric()
+uswhitepop <- sum(uswhitepop, na.rm=TRUE)
+
+usblackdeaths <- sum(killdata_clean$race == 'B', na.rm=TRUE)
+usblackpop <- masterCensus_s2$Estimate..Race.alone.or.in.combination.with.one.or.more.other.races..Total.population..Black.or.African.American %>%
+  as.numeric()
+usblackpop <- sum(usblackpop, na.rm=TRUE)
+
+ushispanicdeaths <- sum(killdata_clean$race == 'H', na.rm=TRUE)
+ushispanicpop <- masterCensus_s2$Estimate..HISPANIC.OR.LATINO.AND.RACE..Total.population..Hispanic.or.Latino..of.any.race. %>%
+  as.numeric()
+ushispanicpop<- sum(ushispanicpop, na.rm=TRUE)
+
+usasiandeaths <- sum(killdata_clean$race == 'A', na.rm=TRUE)
+usasianpop <- masterCensus_s2$Estimate..Race.alone.or.in.combination.with.one.or.more.other.races..Total.population..Asian %>%
+  as.numeric()
+usasianpop <- sum(usasianpop, na.rm=TRUE)
+
+
+uswhitedeaths/uswhitepop*10000
+usblackdeaths/usblackpop*10000
+ushispanicdeaths/ushispanicpop*10000
+usasiandeaths/usasianpop*10000
 
 ```
-
+On a national level, there are clear racial disparities among the per capita rate of police killings. When looking at the number of killings of a particular race per 10K population of that race, we can see that black Americans are killed at over 2x the rate of white Americans. Those of Hispanic descent are killed about 1/3 higher rate
 
 ```{r}
 
