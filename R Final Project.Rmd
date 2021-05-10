@@ -17,16 +17,27 @@ The primary data-set our study is based on is a police killings database maintai
 
 To supplement this data, we utilized the Census Bureau data tool to download demographic and economic information available at the county level and joined it with the killings data by county (or FIPS code). The Census Bureau has a data query tool that appears fairly comprehensive but is also a bit un-intuitive to use. Nonetheless, we pulled in five different county-level data-sets from the American Community Survey which was last taken in 2019. These reports include 1) Demographics and Housing, Educational Attainment, Financial Characteristics, Selected Economics Characteristics, Selected Housing Characteristics. 
 
+#to do - list what we did. 
+
+#conclusion
+
+## Findings
+
+#regression / lasso
+#data vis, counties
+
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 if(!require('pacman')) {install.packages('pacman')}
-pacman::p_load(tidyverse, dplyr, ggplot2, ggthemes, data.table, lubridate,
+pacman::p_load(tidyverse, stringr, dplyr, ggplot2, ggthemes, data.table, lubridate,
                RColorBrewer, ggsci, plotROC, usmap,
                plotly, ggpubr, vistime, RCurl, RJSONIO, sf, tigris, devtools, gtsummary, cli)
 library(dplyr)
 ```
 
 ## R Markdown
+
+##EDA / Data Preparation
 
 ```{r}
 # Read-in data
@@ -94,8 +105,6 @@ housingData <- read.csv("Data (County-Level)/Selected Housing Characteristics/AC
 ```
 
 ```{r}
-# names(demoData)
-
 # Join together all the demo data by ID (in this case the FIPS)
 masterCensus <- demoData %>%
   left_join(econData, by="id") %>%
@@ -212,7 +221,9 @@ killdata_fips_year <- killdata_clean %>%
 
 # Pull out the FIPS code out of the ID identified in the census data
 masterCensus_s2$fips <- str_sub(masterCensus_s2$id, -5, -1)
+```
 
+```{r}
 # Join the killings data to the census data. Create the killing rate response variable as well as transformed version because the rates are very low. 
 sdl1 <- masterCensus_s2 %>%
     left_join(killdata_FIPS, by="fips") %>%
@@ -308,36 +319,9 @@ sdl8 <- sdl7 %>%
 # options(max.print=400)
 ```
 
-Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
-
-
-Some questions to explore:
-- In what situations is a suspect more likely to be shot by the police?
-- Are body cameras associated with lower killings per capita?
-- Is there a higher proportion of certain races shot compared to the population?
-    - Does this vary by county?
-
-Output variable: Killing per capita
-Output variable: % black killings / % black population
-    - Does average income affect this?
-    - Does average education affect this?
-
-Output variable: % of killings involving use of taser
-- What factors contribute to greater use of taser?
-  - More likely to be used against certain races?
-  - More likely to be used when no weapon, or non-long range weapon carried by suspect?
-  - When fleeing?
-
+#Model Selection
 
 ```{r}
-# head(sdl1)
-# turns all NAs into 0
-# sdl2 <- sdl1 %>%
-#   mutate_all(~replace(., is.na(.), 0)) %>%
-#  relocate(totalKillings, .before = fips) %>%
-#  relocate(killingRate, .before = fips) %>%
-#  relocate(killingRateLog, .before = fips)
-#   is.na(sdl2$killingRateLog)
 
 # Remove non-predictive variables
 sdl8sub = sdl8[,-1:-5]
@@ -371,7 +355,10 @@ library(gtsummary)
 # Get summary of regression results
 fit.min.lm %>%
     tbl_regression()
+fit.min.lm
 ```
+
+
 
 ```{r}
 # Runs a linear chart for killings each year
