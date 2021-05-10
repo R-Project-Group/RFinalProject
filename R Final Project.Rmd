@@ -50,31 +50,37 @@ knitr::opts_chunk$set(echo = TRUE)
 if(!require('pacman')) {install.packages('pacman')}
 pacman::p_load(tidyverse, stringr, dplyr, ggplot2, ggthemes, data.table, lubridate,
                RColorBrewer, ggsci, plotROC, usmap,
-               plotly, ggpubr, vistime, RCurl, RJSONIO, sf, tigris, devtools, gtsummary, cli)
+               plotly, ggpubr, vistime, RCurl, RJSONIO, sf, tigris, devtools, gtsummary, cli, skimr)
 library(dplyr)
 ```
 
 ## R Markdown
 
-##EDA / Data Preparation
+## Exploratory Data Analysis and Data Preparation
 
+### Read in Data
+
+These are census shape files which we need to map latitude and longitutde to FIPs codes
 ```{r}
-# Read-in data
-
-# These are census shape files which we need to map latitude and longitutde to FIPs codes
 census_tracts <- st_read("CensusShapes2/cb_2018_us_county_within_cd116_500k.shp", quiet = TRUE)
+```
 
-# This is the police killing data from Kaggle
+This is the police killing data from Kaggle
+```{r}
 killdata <- read.csv("PoliceKillingsUS_MC.csv")
+```
 
-# This is a look-up table that maps FIPS code to County name and State (from: https://www.nrcs.usda.gov/wps/portal/nrcs/detail/national/home/?cid=nrcs143_013697)
+This is a look-up table that maps FIPS code to County name and State (from: https://www.nrcs.usda.gov/wps/portal/nrcs/detail/national/home/?cid=nrcs143_013697)
+```{r}
 fipsLookUp <- read.csv("FIPSCountyStateLookUp.csv", colClasses ='character') 
 fipsLookUp$fips <- fipsLookUp[,1] # Import has made the FIPS column name weird so re-making column
+```
 
-# First-off, we need take our geo-coordinates of each police killing and map it to a county (uniquely identified by a FIPS code). This is because all the census data we plan to join in is readily available at the county level
+First-off, we need take our geo-coordinates of each police killing and map it to a county (uniquely identified by a FIPS code). This is because all the census data we plan to join in is readily available at the county level
 
-# There are APIs that do this, but we couldn't figure out how to get them to work. Instead, we found a tutorial that relies on plotting lat/long within county boundaries as defined in the shape files. Tutorial here: https://shiandy.com/post/2020/11/02/mapping-lat-long-to-fips/
+There are APIs that do this, but we couldn't figure out how to get them to work. Instead, we found a tutorial that relies on plotting lat/long within county boundaries as defined in the shape files. Tutorial here: https://shiandy.com/post/2020/11/02/mapping-lat-long-to-fips/
 
+```{r message=FALSE, warning=FALSE}
 # Remove the lat/long from the killing data to feed into this algorithm
 killdata_latlong <- data.frame(latitude = killdata$latitude, longitude = killdata$longitude)
 
@@ -103,9 +109,8 @@ killdata_clean <- killdata %>%
 killdata_clean$mod_fips <- latlong_final$mod_fips  
 ```
 
+The next step is to read-in the census data. All data was sourced from the American Community Survey in 2019 and pulled at the FIPS level for all counties
 ```{r}
-# Read-in census data. All data was sourced from the American Community Survey in 2019 and pulled at the FIPS level for all counties
-
 # Skip the first row, as it is a redundant header row
 demoData <- read.csv("Data (County-Level)/Demographics and Housing/ACSDP1Y2019.DP05_data_with_overlays_2021-04-29T104649.csv", skip = 1, header = T)
 # ACS DEMOGRAPHIC AND HOUSING ESTIMATES
@@ -123,25 +128,30 @@ housingData <- read.csv("Data (County-Level)/Selected Housing Characteristics/AC
 # ACS SELECTED HOUSING CHARACTERISTICS
 ```
 
+Let's now join together all the census data by ID (in this case the FIPS)
 ```{r}
-# Join together all the demo data by ID (in this case the FIPS)
 masterCensus <- demoData %>%
   left_join(econData, by="id") %>%
   left_join(eduData, by="id") %>%
   left_join(housingData, by="id") %>%
   left_join(financeData, by="id")
+```
 
-# Half of the columns are columns which estimate how much error they may have been in the measurement. These are a bit too complex to work with, so let's just remove them
-# There are also overlapping columns across each set. These get a '.y'. or '.x' added to them so can be identified and removed.  
+Half of the columns are columns which estimate how much error they may have been in the measurement. These are a bit too complex to work with, so let's just remove them
+
+There are also overlapping columns across each set. These get a '.y'. or '.x' added to them so can be identified and removed.  
+
+```{r}
 masterCensus_s2 <- masterCensus %>%
   select(-contains("Error")) %>% # Removes columns that indicator the error
   select(-contains(".y")) %>% # Indicates a duplicated variable
   select(-contains(".x"))
 ```
 
-```{r}
-# Let's look at the killings data to understand what data we have, and what sort of dependent variable we want to create. 
+### Data exploration
 
+Let's look at the killings data to understand what data we have, and what sort of dependent variable we want to create. 
+```{r message=FALSE, warning=FALSE}
 killdata_clean %>%
   group_by(manner_of_death, signs_of_mental_illness, threat_level, flee, body_camera) %>%
   summarise(count = n())
@@ -165,13 +175,13 @@ killdata_clean %>%
 killdata_clean %>%
   group_by(body_camera) %>%
   summarise(count = n()) # Options FALSE or TRUE. Only ~14% of deaths had body cameras
-
-# Given that there is not much data is it is -- it may not make sense to differentiate different types of killings (e.g. those where there was a threat or signs of mental illness). It may not make much sense to differentiate by year either. 
 ```
 
-```{r}
-# Curious to see how the killing is disseminated across counties represented in the data. Below is code to construct a pareto chart of killings by FIPS. 
+Given that there is not much data, it may not make sense to differentiate different types of killings (e.g. those where there was a threat or signs of mental illness). It may not make much sense to differentiate by year either. 
 
+We were curious to see how killing is disseminated across countries represented in the data. Below is a code to construct a Pareto chart of killing by FIPS. This shows us whether few counties represent most of the killing. Pareto tutorial sourced from here: https://rstudio-pubs-static.s3.amazonaws.com/72023_670962b57f444c04999fd1a0a393e113.html
+
+```{r}
 killdata_FIPS <- killdata_clean %>% # Create a county-level data-set with # of killings
   group_by(mod_fips) %>%
   summarise(totalKillings = n()) %>%
@@ -194,9 +204,9 @@ pc = barplot(paretoData$totalKillings,
              ylim = c(0, 1.05 * max(paretoData$totalKillings, na.rm = T)), 
              ylab = "Cumulative Counts" , cex.names = 0.7, 
              names.arg = paretoData$fips,
-             main = "Pareto Chart (version 2)")
+             main = "Killings by County")
 
-## anotate left axis
+## annotate left axis
 axis(side = 2, at = c(0, paretoData$totalKillings), las = 1, col.axis = "grey62", col = "grey62", tick = T, cex.axis = 0.8)
 
 ## frame plot
@@ -212,38 +222,48 @@ lines(pc, px, type = "b", cex = 0.7, pch = 19, col="cyan4")
 ## restoring default parameter
 axis(side = 4, at = c(0, px), labels = paste(c(0, round(paretoData$cum_freq * 100)) ,"%",sep=""), 
      las = 1, col.axis = "grey62", col = "cyan4", cex.axis = 0.8, col.axis = "cyan4")
-
-# One FIPs has a staggeringly high killing number (255), but we have to scale this by population. There is a very long right tail and from the pareto shape it does seem like certain counties are over-represented.
-
 ```
 
+One FIPs has a staggeringly high killing number (255), but we have to scale this by population. There is a very long right tail and from the pareto shape it does seem like certain counties are over-represented.
+
+Which county is this?
 ```{r}
-# The maximum number of total killings is in Los Angeles County at 255. 
 killdata_FIPS$fips[which.max(killdata_FIPS$totalKillings)]
 killdata_FIPS$totalKillings[which.max(killdata_FIPS$totalKillings)]
 ```
+The maximum number of total killings is in Los Angeles County at 255. 
 
+Have killings increased over time? We look at this broadly here.
 ```{r}
+<<<<<<< Updated upstream
 
 # install.packages('skimr')
 library(skimr)
 # summary(killdata_clean)
 
+=======
+>>>>>>> Stashed changes
 # Evaluate data across time
 killdata_fips_year <- killdata_clean %>%
   mutate(date = as.Date(killdata_clean$date, format = "%m/%d/%Y")) %>%
   mutate(year = lubridate::year(date)) %>%
   group_by(year) %>%
   summarise(totalKillings = n())
+```
+There is not much difference year over year; might not make sense to separate this by years
 
-# There is not much difference year over year; might not make sense to separate this by years
+### Continued Data Processing
 
+```{r}
 # Pull out the FIPS code out of the ID identified in the census data
 masterCensus_s2$fips <- str_sub(masterCensus_s2$id, -5, -1)
 ```
 
+We will join the killings data to the demographics and population data from the census. The response variable we are creating will be called the killing rate and is the number of killings (across all time) divided by the 2019 county population. Because this rate is very low, we've also created a transformed version (log()) which we will use for the subsequent data analysis. 
+
+To not exclude countries that have 0 killings (which would be undefined with log(0)), we have coalesced any county that has a 0% killing rate into having a 0.0001% killing rate.
+
 ```{r}
-# Join the killings data to the census data. Create the killing rate response variable as well as transformed version because the rates are very low. 
 sdl1 <- masterCensus_s2 %>%
     left_join(killdata_FIPS, by="fips") %>%
     mutate(killingRate =  totalKillings/Estimate..SEX.AND.AGE..Total.population) %>%
@@ -252,20 +272,25 @@ sdl1 <- masterCensus_s2 %>%
     select(fips,totalKillings,killingRate,killingRateLog,everything())
 ```
 
-```{r}
-# We will do some variable/column cleaning
+### Data cleaning
 
-# Step 1 cleaning; only keep columns that have 'percentage' data. Countries differ greatly by size, so the nominal data could push results one way or another. By using percentage data, each variable in each county receives equal weight
+Although the census data is somewhat standardized it isn't useable in its raw form. 
+
+Step 1 cleaning; only keep columns that have 'percentage' data. Countries differ greatly by size, so the nominal data could push results one way or another. By using percentage data, each variable in each county receives equal weight
+```{r}
 sdl2 <- sdl1 %>%
     select(contains("Percent"))
+```
 
-# Step 2 cleaning; identify non-numeric values within census data
+Step 2: identify non-numeric values within the census data and remove such variables
+```{r}
 table(unlist(sdl2, use.names = FALSE)[(!grepl('^[0-9]',unlist(sdl2, use.names = FALSE)))])
+```
 
-# It looks like things are coded (X) or N if they are missing; let's look at which columns have a high percentage of (X) or N and are thus worth dropping
-
+It looks like things are coded (X) or N if they are missing; let's look at which columns have a high percentage of (X) or N and are thus worth dropping
+```{r message=FALSE, warning=FALSE}
 # Flag any column where more than half the values are '(X)'
-library(plyr)
+library(plyr) # plyr can cause issues -- we advise clearing directory and only loading plyr at this point
 count.X.per.column <- ldply(sdl2, function(c) sum(c=="(X)"))
 columnsToExclude1 <- count.X.per.column$.id[count.X.per.column$V1 > 420]
 
@@ -279,10 +304,16 @@ sdl3 <- sdl2 %>%
 
 sdl4 <- sdl3 %>%
   select(-columnsToExclude2)
+```
 
+Step 3: Convert remaining data into numeric values (this will force some values to NA). In this case, we're comfortable with that.
+```{r message=FALSE, warning=FALSE}
 # Convert remaining data frame into numeric columns (will force some values to NA)
 sdl5 <- mutate_all(sdl4, function(x) as.numeric(as.character(x)))
+```
 
+Step 4: Eliminate data columns where the maximum or minimum values exceeds the allowable amount. For example, some columns are labeled as 'percent' but actually contain nominal values.
+```{r message=FALSE, warning=FALSE}
 # Flag any column where the minimum is above 100 (percentage cannot be over 100)
 colMin <- apply(sdl5, 2, min, na.rm = TRUE)
 columnsToExclude3 <- names(colMin)[colMin>100]
@@ -298,8 +329,10 @@ columnsToExclude4 <- names(colMax)[colMax>100]
 # Drop columns with value that exceeds the expected range
 sdl7 <- sdl6 %>%
   select(-columnsToExclude4)
+```
 
-## NEW ADDITIONS ##
+Step 5: Our cleaning is aggressive. And there may be some variables that we think are worth keeping despite them not meeting our original tests. For example, we want to control for total population (a nominal variable) so we will keep it, despite it not being a percentage. After reviewing the first model, we realized there is a key issue with many variables being correlated. We created a manual short-list of 70-80 variables that we sub-select for the model, if they pass the cleaning steps above. 
+```{r}
 manualForceIn <- read.csv('census_columns_keep.csv.', header = FALSE)
 manualForceIn[1,] <- "Estimate..SEX.AND.AGE..Total.population"
 
@@ -328,15 +361,100 @@ sdl7$Estimate..SELECTED.MONTHLY.OWNER.COSTS..SMOC...Housing.units.without.a.mort
 sdl7$Estimate..SEX.AND.AGE..Total.population <- sdl1$Estimate..SEX.AND.AGE..Total.population
 sdl7$Estimate..VALUE..Owner.occupied.units..Median..dollars. <- sdl1$Estimate..VALUE..Owner.occupied.units..Median..dollars.
 
-names(sdl7)
-detach("package:plyr", unload = TRUE)
-# Join on county and state variables onto data layer
+detach("package:plyr", unload = TRUE) # we try to detatch plyr so it doesn't mess up our dplyr functions later
+
+# Join on county and state variables onto data layer -- did this in case it would be helpful for later analyses
 sdl8 <- sdl7 %>%
   left_join(fipsLookUp, by="fips") %>%
   select(fips,County,State,totalKillings,killingRate,killingRateLog,everything()) %>%
   select(-ï..FIPS)
-# options(max.print=400)
 ```
+
+### Model Selection
+
+Just like in class, we will use LASSO and the glmnet function to select a more parsimonious set of variables of the 70 or so that we have. We played around with a with parameters here (including a model that had 369 variables and then our sub-set of 70 variables)
+```{r}
+# Remove non-predictive variables
+sdl8sub = sdl8[,-1:-5]
+
+# Glmnet doesn't play with NAs, so coalesce all NAs into 0
+sdl9sub <- sdl8sub %>%
+   mutate_all(~replace(., is.na(.), 0)) 
+
+set.seed(1)
+
+# Create model matrix for GLM
+X.fl <- model.matrix(killingRateLog~., data=sdl9sub)[,-1]
+Y <- sdl9sub$killingRateLog
+
+# Run CV glmnet with ten-folds
+fit.lasso.0 <- glmnet::cv.glmnet(X.fl,Y, nfolds = 10, intercept =T)
+plot(fit.lasso.0)
+```
+
+The plot suggests that MSE is minimized around 56 variables, but we will choose the 1SE point to reduce the amount of variables brought into the model.
+```{r}
+# Identify variables associated with MSE at 1SE above minimum
+coef.1se <- coef(fit.lasso.0, s="lambda.1se")
+var.1se <- coef.1se@Dimnames[[1]][coef.1se@i + 1][-1]
+
+# Extract selected variables out of data-set
+data.fl.sub <- sdl9sub[,c("killingRateLog", var.1se)] # get a 
+
+# Re-name columns so that the regression output is more presentable
+data.fl.sub2 <- data.fl.sub %>%
+  rename(Pop_OneRace = Percent..RACE..Total.population..One.race) %>%
+  rename(Pop_White = Percent..Race.alone.or.in.combination.with.one.or.more.other.races..Total.population..White) %>%
+  rename(Pop_AmericanIndianAlaskan = Percent..Race.alone.or.in.combination.with.one.or.more.other.races..Total.population..American.Indian.and.Alaska.Native) %>%
+  rename(Pop_HispanicLatino = Percent..HISPANIC.OR.LATINO.AND.RACE..Total.population..Hispanic.or.Latino..of.any.race.) %>%
+  rename(Income_25to35k = Percent..INCOME.AND.BENEFITS..IN.2019.INFLATION.ADJUSTED.DOLLARS...Total.households...25.000.to..34.999) %>%
+  rename(Income_50to75k = Percent..INCOME.AND.BENEFITS..IN.2019.INFLATION.ADJUSTED.DOLLARS...Total.households...50.000.to..74.999) %>%
+  rename(Income_wSocialSec = Percent..INCOME.AND.BENEFITS..IN.2019.INFLATION.ADJUSTED.DOLLARS...Total.households..With.Social.Security) %>%
+  rename(Income_wSuppSec = Percent..INCOME.AND.BENEFITS..IN.2019.INFLATION.ADJUSTED.DOLLARS...Total.households..With.Supplemental.Security.Income) %>%
+  rename(Income_foodStamp = Percent..INCOME.AND.BENEFITS..IN.2019.INFLATION.ADJUSTED.DOLLARS...Total.households..With.Food.Stamp.SNAP.benefits.in.the.past.12.months) %>% 
+  rename(HealthCoverage = Percent..HEALTH.INSURANCE.COVERAGE..Civilian.noninstitutionalized.population..With.health.insurance.coverage) %>%
+  rename(PrivHealthCov = Percent..HEALTH.INSURANCE.COVERAGE..Civilian.noninstitutionalized.population..With.health.insurance.coverage..With.private.health.insurance) %>%
+  rename(noHealthCov = Percent..HEALTH.INSURANCE.COVERAGE..Civilian.noninstitutionalized.population..No.health.insurance.coverage) %>%
+  rename(edu_BlackHighSchool = Estimate..Percent..RACE.AND.HISPANIC.OR.LATINO.ORIGIN.BY.EDUCATIONAL.ATTAINMENT..Black.alone..High.school.graduate.or.higher) %>%
+  rename(vacantHousing = Percent..HOUSING.OCCUPANCY..Total.housing.units..Vacant.housing.units) %>%
+  rename(duplexes = Percent..UNITS.IN.STRUCTURE..Total.housing.units..2.units) %>%
+  rename(mdus = Percent..UNITS.IN.STRUCTURE..Total.housing.units..5.to.9.units) %>%
+  rename(mobileHomes = Percent..UNITS.IN.STRUCTURE..Total.housing.units..Mobile.home) %>%
+  rename(twoVehiclesAvailable = Percent..VEHICLES.AVAILABLE..Occupied.housing.units..2.vehicles.available) %>%
+  rename(noPlumbing = Percent..SELECTED.CHARACTERISTICS..Occupied.housing.units..Lacking.complete.plumbing.facilities) %>%
+  rename(houseswMortages = Percent..MORTGAGE.STATUS..Owner.occupied.units..Housing.units.with.a.mortgage) %>%
+  rename(medianRent = Estimate..GROSS.RENT..Occupied.units.paying.rent..Median..dollars.) %>%
+  rename(roomsInHousing = Estimate..ROOMS..Total.housing.units..Median.rooms) %>%
+  rename(ownerCostsHousing = Estimate..SELECTED.MONTHLY.OWNER.COSTS..SMOC...Housing.units.without.a.mortgage..Median..dollars.) %>%
+  rename(totalPop = Estimate..SEX.AND.AGE..Total.population)
+```
+
+We now run the relaxed LASSO. 
+```{r}
+# Use selected variables in Relaxed-LASSO
+fit.min.lm <- lm(killingRateLog~., data=data.fl.sub2)
+
+# We compare this against the model with the full set of variables
+fit.all.lm <- lm(killingRateLog~., data=sdl9sub)
+# summary(fit.all.lm)
+# R^2 is only 0.3261
+
+summary(fit.min.lm)
+```
+The model has a R-squared of 0.2709 which is not high, but potentially has some predictive ability. Several variables selected from LASSO are significant.
+
+We have run some diagnostic plots also to assess the regression. Conditions for heteroskedasticity and normality of residuals seem appeased
+
+```{r}
+# Diagnostic plots
+plot(fit.min.lm$fitted, fit.min.lm$residuals,
+pch = 16,
+main = "residual plot")
+abline(h=0, lwd=4, col="red")
+
+qqnorm(fit.min.lm$residuals)
+```
+
 ```{r}
 # Runs a linear chart for killings each year
 p <- ggplot(data=killdata_fips_year, aes(x=year, y=totalKillings)) +
