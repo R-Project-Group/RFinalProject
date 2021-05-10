@@ -39,7 +39,7 @@ The summary of our findings is below.
 ## Caveats & Next Steps
 There were several drawbacks to our data. Not all of the police killings in the Washington Post data had longitudes and latitudes, so we had to remove them (~300 killings out of 6,300). We are also not sure how robust this data is given it is scraped together by the Washington Post (although it appears they use multiple sources). Secondly, our response variable could be improved. While we did killings over population, we considered also a metric like killings/number of crimes, lest the number of killings just be a proxy of crime rate and police presence (instead of actual bias or discrimination). Finally we did a log transformation of the response variable -- we felt that this was the right treatment given the very small differences in rates, but we wonder if there were more suitable transformations or if a transformation was necessary at all.
 
-Our goal was to use regularization solely for variable selection (going from 925 variables to a subset of 20), but after attempting this once, we felt we would apply manual human judgment to pick a smallser set of variables to work from. We were mostly concerned with how the data was structured, and how sets of variables were all correlated with each other. For example the % male population 
+Our goal was to use regularization solely for variable selection (going from 925 variables to a subset of 20), but after attempting this once, we felt we would apply manual human judgment to pick a smaller set of variables to work from. We were mostly concerned with how the data was structured, and how sets of variables were all correlated with each other. For example the % male population variable is just 1 - % female population. In our final model, we did not seem to see this issue in our model validation. We also did not know the best practice in converting 
 
 One of the next analyses we would like to do would be to repeat our analyses for total killings for counties with disproportionate African American killings, to see whether different factors lead to higher rates of African American killings compared to overall level of killings. We would also like to do further research to see if we could isolate other sources of data to analyze killings at the city level, which may remove some of the noise at the county level (for example, if certain counties had just one city vs. multiple cities). We'd also like to add in crime statistics
 
@@ -445,7 +445,7 @@ abline(h=0, lwd=4, col="red")
 qqnorm(fit.min.lm$residuals)
 ```
 
-# Map visualization 
+# Sub-analysis 1: Visualization of killings across counties
 
 In this section, we will try to map the high police killing rate counties to a US Map to see if there are any visually apparent trends. We will also look at the map over a linear time series, to see if there are any year to year changes. 
 ```{r}
@@ -554,7 +554,7 @@ county_map_filtered2 %>%
 
 It is again difficult to discern a particular pattern between years, but it does appear that in the majority of the years, the West has many of the counties with the highest rate of Police Killings. 
 
-## Analysis of black killings per capita vs. overall killings per capita
+## Sub-analysis 2: Analysis of black killings per capita vs. overall killings per capita
 
 Racial Disparities: In this section, we wanted to deep dive into the racial disparities between in the killing rate and adjust for the population levels of each race within the county. The reason for this deeper look is because we were surprised to see a relatively low presence of racial factors in our earlier model, and believe this topic deserves a closer look, especially with the prominence of this topic over the past year in the US.
 
