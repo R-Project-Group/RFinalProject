@@ -39,7 +39,7 @@ The summary of our findings is below.
 5. Unsurprisingly, given the backdrop of this project, African Americans were killed at the highest rates relative to their population, at 2x the rate of the next highest race, Latinos. Whites were killed at a slightly lower rate than Latinos, while Asians faced by far the lowest rate of police killings.  
 6. Our model came up with x factors at the 0.05 significance level cut off, with an overall R squared of x, which for real world data is a decent result. X, X, X were factors that increased the rate of police killings while x, x and x were factors that decreased the rate of police killings.   
 
-#Caveats & Next Steps
+## Caveats & Next Steps
 
 There were several drawbacks to our data. Not all of the police killings in the Washington Post data had longitudes and latitudes, so we had to remove them (~300 killings out of 6,300).
 
@@ -552,45 +552,6 @@ county_map_filtered2 %>%
 ```
 
 It is again difficult to discern a particular pattern between years, but it does appear that in the majority of the years, the West has many of the counties with the highest rate of Police Killings. 
-
-#Model Selection
-
-```{r}
-# Remove non-predictive variables
-sdl8sub = sdl8[,-1:-5]
-
-# Glmnet doesn't play with NAs, so coalesce all NAs into 0
-sdl9sub <- sdl8sub %>%
-   mutate_all(~replace(., is.na(.), 0)) 
-
-set.seed(1)
-
-# Create model matrix for GLM
-X.fl <- model.matrix(killingRateLog~., data=sdl9sub)[,-1]
-Y <- sdl9sub$killingRateLog
-
-# Run CV glmnet with ten-folds
-fit.lasso.0 <- glmnet::cv.glmnet(X.fl,Y, nfolds = 10, intercept =T)
-plot(fit.lasso.0)
-
-# Identify variables associated with MSE at 1SE above minimum
-coef.1se <- coef(fit.lasso.0, s="lambda.1se")
-var.1se <- coef.1se@Dimnames[[1]][coef.1se@i + 1][-1]
-
-# Extract selected variables out of data-set
-data.fl.sub <- sdl9sub[,c("killingRateLog", var.1se)] # get a 
-
-# Use selected variables in Relaxed-LASSO
-fit.min.lm <- lm(killingRateLog~., data=data.fl.sub)
-
-library(gtsummary)
-
-# Get summary of regression results
-fit.min.lm %>%
-    tbl_regression()
-fit.min.lm
-```
-
 
 Analysis of black killings per capita vs. overall killings per capita
 ```{r}
