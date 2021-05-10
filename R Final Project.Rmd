@@ -611,14 +611,14 @@ killdata_raceanalysis <- killdata_clean %>%
   left_join(masterCensus_s2, by="fips") %>%
   mutate(blackPop = as.numeric(Percent..Race.alone.or.in.combination.with.one.or.more.other.races..Total.population..Black.or.African.American)/100*as.numeric(Estimate..SEX.AND.AGE..Total.population)) %>%
   na.omit() %>%
-  mutate(blacksRatio = as.numeric(totalBlackKillings)/as.numeric(blackPop)*10000) %>%
+  mutate(blacksRatio = as.numeric(totalBlackKillings)/as.numeric(blackPop)*100000) %>%
   select(fips, totalBlackKillings, blacksRatio, blackPop)
 
 
 killdata_FIPS2 <- killdata_FIPS %>%
   left_join(masterCensus_s2, by="fips") %>%
   na.omit() %>%
-  mutate(overallRatio = as.numeric(totalKillings)/as.numeric(Estimate..SEX.AND.AGE..Total.population)*10000) %>%
+  mutate(overallRatio = as.numeric(totalKillings)/as.numeric(Estimate..SEX.AND.AGE..Total.population)*100000) %>%
   select(fips, totalKillings, overallRatio, Estimate..SEX.AND.AGE..Total.population,) %>%
   rename(overallPop = Estimate..SEX.AND.AGE..Total.population)
 
@@ -646,10 +646,10 @@ usasianpop <- masterCensus_s2$Estimate..Race.alone.or.in.combination.with.one.or
 usasianpop <- sum(usasianpop, na.rm=TRUE)
 
 
-uswhitedeaths/uswhitepop*10000
-usblackdeaths/usblackpop*10000
-ushispanicdeaths/ushispanicpop*10000
-usasiandeaths/usasianpop*10000
+uswhitedeaths/uswhitepop*100000
+usblackdeaths/usblackpop*100000
+ushispanicdeaths/ushispanicpop*100000
+usasiandeaths/usasianpop*100000
 
 
 ```
@@ -662,17 +662,20 @@ plot(x = killdata_raceanalysis$blacksRatio,
      pch  = 16,     # "point character": shape/character of points 
      cex  = 0.8,    # size
      col  = "blue", # color 
-     xlab = "Black Killings per 10K Black Population",  # x-axis
-     ylab = "Overall Killings per 10K General Population",  # y-axis 
-     main = "Comparison of Killings/10K Population by County",
-     xlim=c(0,3),
-     ylim=c(0,1),
+     xlab = "Black Killings per 100K Black Population",  # x-axis
+     ylab = "Overall Killings per 100K General Population",  # y-axis 
+     main = "Comparison of Killings/100K Population by County",
+     xlim=c(0,30),
+     ylim=c(0,11),
      abline(coef = c(0,1)))
 
-
 ```
+<<<<<<< Updated upstream
 
 This scatter plot displays counties in the US along the ratio of black Americans killed by the ratio of the general population killed. The line dividing the plot has a slope of one, so counties alongside the line have a black ratio equal to the general ratio of killing per 10K residents. There are a few takeaways from this plot. First, it's clear that this is a widespread issue plaguing much of the United States, and is not a result of a few "bad areas" driving up the racial disparity, demonstrated by the vast number of points to the right of the line. Second, there are in fact many counties where there are extremely high levels of racial disparity where the federal or state government may need to review police training at the local levels.
+=======
+This scatter plot displays counties in the US along the ratio of black Americans killed by the ratio of the general population killed. The line dividing the plot has a slope of one, so counties alongside the line have a black ratio equal to the general ratio of killing per 100K residents. There are a few takeaways from this plot. First, it's clear that this is a widespread issue plaguing much of the United States, and is not a result of a few "bad areas" driving up the racial disparity, demonstrated by the vast number of points to the right of the line. Second, there are in fact many counties where there are extremely high levels of racial disparity where the federal or state government may need to review police training at the local levels.
+>>>>>>> Stashed changes
 
 
 
