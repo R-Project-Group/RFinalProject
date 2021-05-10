@@ -399,11 +399,12 @@ fulldata <- left_join(killdata_fips_county, masterCensus_s2, by="fips") %>%
   mutate(killingRate =  (totalKillings/Estimate..SEX.AND.AGE..Total.population)*100000/6) %>%
   mutate(killingRateEff = coalesce(killingRate, 0.000001)) %>%
   mutate(killingRateLog = log(killingRateEff)) %>%
+  arrange(desc(killingRate)) %>%
   rename(county_fips = fips) %>%
   select(county_fips,totalKillings,killingRate,killingRateLog)
-head(fulldata)
+head(fulldata,10)
 ```
-
+The 10 highest county annual killing rates over the six year period of 2015-2020 are: Tehama, CA, Pueblo, CO, Fairbanks North Star, AK, Shasta, CA, Muskogee, OK, St. Louis, MO, Lea, NM, Coconino, AZ, Apache, AZ, Yellowstone, MT. It's hard to discern commonalities among these ten counties, but one clear trend is that they are almost all in the Western part of the United States. None of them are in major cities, either. 
 
 ```{r}
 #joins the data frame with FIPs and killing rate with the county map
@@ -522,4 +523,7 @@ county_map_filtered2 %>%
   labs(fill = "Annual Rate of Police Killings") + 
   scale_fill_distiller(palette = "Spectral") +
   facet_wrap(~year)
+
 ```
+```
+It is again difficult to discern a particular pattern between years, but it does appear that in the majority of the years, the West has many of the counties with the highest rate of Police Killings. 
