@@ -20,7 +20,6 @@ To supplement this data, we utilized the Census Bureau data tool to download dem
 We then assign killings to each county using longitude and latitude data, and then joined the census data, such as income, race, and population data for each county with the killings data by FIPS County Code. Our focus was largely at the county level, since it was difficult to get the data necessary from the census at the city level, and the state level was not granular enough. We performed the following  analyses to understand insights from the data.
 
 ## List of Analyses
-
 1. We examined whether certain counties had a disproportionate percentage of the total killings using a Pareto chart. 
 2. We graphed killings by year to see whether there was a time series trend. 
 3. We looked at the counties with the highest killing rate to see if there was any trend among them. 
@@ -29,19 +28,18 @@ We then assign killings to each county using longitude and latitude data, and th
 6. We used model selection (LASSO) to come up a multi-variate model to try and predict the factors to lead to higher rates of police killings.  
 
 ## Findings
-
 The summary of our findings is below. 
-
 1. Certain counties, especially larger counties such as LA County, make up a disproportionate number of the absolute number of police killings, which is unsurprising. 
 2. The absolute number of police killings has bounced around over the last 6 years, with 2015 being the highest. If anything, odd years have a higher number of killings, which is likely just random noise.  
 3. While difficult to note a trend among the 10 counties with the highest rates of police killings, we did note that all 10 were in the West (or at least Midwest, depending on how you classify Missouri and Oklahoma).  
 4. There was again no discernable trend by year, however again most of the high killing rate counties were in the West and Southwest. 
 5. Unsurprisingly, given the backdrop of this project, African Americans were killed at the highest rates relative to their population, at 2x the rate of the next highest race, Latinos. Whites were killed at a slightly lower rate than Latinos, while Asians faced by far the lowest rate of police killings.  
-6. Our model came up with x factors at the 0.05 significance level cut off, with an overall R squared of x, which for real world data is a decent result. X, X, X were factors that increased the rate of police killings while x, x and x were factors that decreased the rate of police killings.   
+6. Our model came up with 11 factors at the 0.05 significance level cut off, with an overall R squared of 027, which for real world data is a decent result. A high Native America / Alaskan population, homogenous population, high median rent, and high rate of Supplemental Security (disabled & aged welfare payments) were factors that increased the rate of police killings while a high rate of private health insurance coverage, high rates of cost of homeownership (e.g. utilities) and and high rates of vacant housing in the county were factors that decreased the rate of police killings, all other factors being equal. Surprisingly, rates of African Americans, population (holding the other factors constant) and median income (holding the other factors constant) did not factor into the regression, but it’s possible that these factors were already built into to some of the variables that were included.    
 
 ## Caveats & Next Steps
+There were several drawbacks to our data. Not all of the police killings in the Washington Post data had longitudes and latitudes, so we had to remove them (~300 killings out of 6,300). We are also not sure how robust this data is given it is scraped together by the Washington Post (although it appears they use multiple sources). Secondly, our response variable could be improved. While we did killings over population, we considered also a metric like killings/number of crimes, lest the number of killings just be a proxy of crime rate and police presence (instead of actual bias or discrimination). Finally we did a log transformation of the response variable -- we felt that this was the right treatment given the very small differences in rates, but we wonder if there were more suitable transformations or if a transformation was necessary at all.
 
-There were several drawbacks to our data. Not all of the police killings in the Washington Post data had longitudes and latitudes, so we had to remove them (~300 killings out of 6,300).
+Our goal was to use regularization solely for variable selection (going from 925 variables to a subset of 20), but after attempting this once, we felt we would apply manual human judgment to pick a smallser set of variables to work from. We were mostly concerned with how the data was structured, and how sets of variables were all correlated with each other. For example the % male population 
 
 One of the next analyses we would like to do would be to repeat our analyses for total killings for counties with disproportionate African American killings, to see whether different factors lead to higher rates of African American killings compared to overall level of killings. We would also like to do further research to see if we could isolate other sources of data to analyze killings at the city level, which may remove some of the noise at the county level (for example, if certain counties had just one city vs. multiple cities). We'd also like to add in crime statistics
 
@@ -54,7 +52,7 @@ pacman::p_load(tidyverse, stringr, dplyr, ggplot2, ggthemes, data.table, lubrida
 library(dplyr)
 ```
 
-## R Markdown
+## R-code and reproducible report
 
 ## Exploratory Data Analysis and Data Preparation
 
@@ -235,14 +233,6 @@ The maximum number of total killings is in Los Angeles County at 255.
 
 Have killings increased over time? We look at this broadly here.
 ```{r}
-<<<<<<< Updated upstream
-=======
-
-# install.packages('skimr')
-library(skimr)
-# summary(killdata_clean)
-
->>>>>>> Stashed changes
 # Evaluate data across time
 killdata_fips_year <- killdata_clean %>%
   mutate(date = as.Date(killdata_clean$date, format = "%m/%d/%Y")) %>%
@@ -455,6 +445,9 @@ abline(h=0, lwd=4, col="red")
 qqnorm(fit.min.lm$residuals)
 ```
 
+# Map visualization 
+
+In this section, we will try to map the high police killing rate counties to a US Map to see if there are any visually apparent trends. We will also look at the map over a linear time series, to see if there are any year to year changes. 
 ```{r}
 # Runs a linear chart for killings each year
 p <- ggplot(data=killdata_fips_year, aes(x=year, y=totalKillings)) +
@@ -561,52 +554,10 @@ county_map_filtered2 %>%
 
 It is again difficult to discern a particular pattern between years, but it does appear that in the majority of the years, the West has many of the counties with the highest rate of Police Killings. 
 
-<<<<<<< Updated upstream
-Analysis of black killings per capita vs. overall killings per capita
-=======
-#Model Selection
-
-```{r}
-# Remove non-predictive variables
-sdl8sub = sdl8[,-1:-5]
-
-# Glmnet doesn't play with NAs, so coalesce all NAs into 0
-sdl9sub <- sdl8sub %>%
-   mutate_all(~replace(., is.na(.), 0)) 
-
-set.seed(1)
-
-# Create model matrix for GLM
-X.fl <- model.matrix(killingRateLog~., data=sdl9sub)[,-1]
-Y <- sdl9sub$killingRateLog
-
-# Run CV glmnet with ten-folds
-fit.lasso.0 <- glmnet::cv.glmnet(X.fl,Y, nfolds = 10, intercept =T)
-plot(fit.lasso.0)
-
-# Identify variables associated with MSE at 1SE above minimum
-coef.1se <- coef(fit.lasso.0, s="lambda.1se")
-var.1se <- coef.1se@Dimnames[[1]][coef.1se@i + 1][-1]
-
-# Extract selected variables out of data-set
-data.fl.sub <- sdl9sub[,c("killingRateLog", var.1se)] # get a 
-
-# Use selected variables in Relaxed-LASSO
-fit.min.lm <- lm(killingRateLog~., data=data.fl.sub)
-
-library(gtsummary)
-
-# Get summary of regression results
-fit.min.lm %>%
-    tbl_regression()
-fit.min.lm
-```
-
+## Analysis of black killings per capita vs. overall killings per capita
 
 Racial Disparities: In this section, we wanted to deep dive into the racial disparities between in the killing rate and adjust for the population levels of each race within the county. The reason for this deeper look is because we were surprised to see a relatively low presence of racial factors in our earlier model, and believe this topic deserves a closer look, especially with the prominence of this topic over the past year in the US.
 
-
->>>>>>> Stashed changes
 ```{r}
 
 killdata_raceanalysis <- killdata_clean %>%
