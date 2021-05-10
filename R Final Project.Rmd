@@ -10,7 +10,7 @@ knitr::opts_chunk$set(echo = TRUE)
 if(!require('pacman')) {install.packages('pacman')}
 pacman::p_load(tidyverse, dplyr, ggplot2, ggthemes, data.table, lubridate,
                RColorBrewer, ggsci, plotROC, usmap,
-               plotly, ggpubr, vistime, RCurl, RJSONIO, sf, tigris, devtools)
+               plotly, ggpubr, vistime, RCurl, RJSONIO, sf, tigris, devtools, gtsummary, cli)
 library(dplyr)
 ```
 
@@ -292,8 +292,7 @@ detach("package:plyr", unload = TRUE)
 sdl8 <- sdl7 %>%
   left_join(fipsLookUp, by="fips") %>%
   select(fips,County,State,totalKillings,killingRate,killingRateLog,everything()) %>%
-  select(-ï..FIPS, -Estimate..HOUSING.OCCUPANCY..Total.housing.units..Homeowner.vacancy.rate, -Estimate..HOUSING.OCCUPANCY..Total.housing.units..Rental.vacancy.rate)
-
+  select(-ï..FIPS)
 # options(max.print=400)
 ```
 
@@ -347,19 +346,14 @@ plot(fit.lasso.0)
 
 # Identify variables associated with MSE at 1SE above minimum
 coef.1se <- coef(fit.lasso.0, s="lambda.1se")
-coef.1se <- coef.1se[which(coef.1se !=0),]
-var.1se <- rownames(as.matrix(coef.1se))[-1]
+var.1se <- coef.1se@Dimnames[[1]][coef.1se@i + 1][-1]
 
 # Extract selected variables out of data-set
 data.fl.sub <- sdl9sub[,c("killingRateLog", var.1se)] # get a 
 
-names(sdl9sub)
-var.min
-
 # Use selected variables in Relaxed-LASSO
 fit.min.lm <- lm(killingRateLog~., data=data.fl.sub)
 
-install.packages('gtsummary')
 library(gtsummary)
 
 # Get summary of regression results
@@ -379,13 +373,12 @@ There does not seem to be any discernable pattern in killings from year to year.
 
 ```{r}
 # installs urbnmapr package
-install.packages("cli")
 devtools::install_github("UrbanInstitute/urbnmapr")
 ```
 
 ```{r}
 #creates a dataframe of all counties from urbanmapr
-counties_sf <- get_urbn_map(map = "counties", sf = TRUE)
+counties_sf <- urbnmapr::get_urbn_map(map = "counties", sf = TRUE)
 head(counties_sf)
 ```
 
